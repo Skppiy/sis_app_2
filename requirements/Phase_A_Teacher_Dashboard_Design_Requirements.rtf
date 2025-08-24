@@ -1,0 +1,129 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Arial;}}
+\fs22
+\b Phase A – Teacher Dashboard — Design-Ready Requirements\b0\line
+Version: 1.0 \tab Date: 2025-08-08 \tab Status: Design-ready\line
+Audience: Product, Engineering, Design, QA\line
+\line
+\b 1) Purpose & Scope\b0\line
+Provide a fast, at-a-glance home for teachers after role selection. The dashboard consolidates today’s classes, attendance actions, quick grade entry, pending approvals (specialist pull-outs), alerts (missing work, grade drops, absences), and shortcuts to lesson plans and communication. It must load quickly, support tablet use, and require near-zero training.\line
+\line
+\b 2) Primary Users & Roles\b0\line
+- \ul Teacher (primary)\ulnone: full interaction.\line
+- \ul Co-teacher\ulnone: same permissions for shared classes.\line
+- \ul Substitute\ulnone: limited actions (take attendance, view plans; no grading unless delegated).\line
+- \ul Admin read-only\ulnone: for shadowing/support.\line
+\line
+\b 3) Key User Stories\b0\line
+US-1: As a teacher, I can review today’s schedule with start/end times, rooms, and class sizes.\line
+US-2: As a teacher, I can take attendance with one click per class block and see completion status.\line
+US-3: As a teacher, I can open the gradebook or quick-enter a single assignment’s scores.\line
+US-4: As a teacher, I can see alerts: missing work counts, recent grade drops, tardy/absent streaks.\line
+US-5: As a teacher, I can approve/deny specialist pull-out requests, with reasons or alternate time proposals.\line
+US-6: As a teacher, I can jump to today’s lesson plan and attached resources.\line
+US-7: As a teacher, I can message parents/students for a class from a contextual shortcut.\line
+\line
+\b 4) Functional Requirements\b0\line
+4.1 \ul Layout Sections\ulnone\line
+A) \i Top Bar\i0: school logo/brand, date/time (local TZ), role-chip (Teacher), profile menu, notifications bell (with count), global search (student, class, resource).\line
+B) \i Today Panel\i0 (left column): vertical list of today’s class blocks with \i period/time, class name, room, roster count, attendance pill (Not started / In progress / Done)\i0. Tapping opens detailed class view.\line
+C) \i Action Cards\i0 (right column):\line
+  - \b Attendance Quick Take\b0: shows current block roster mini-grid (P/A/Tardy dropdown + Notes icon). \line
+  - \b Grade-at-a-Glance\b0: recent assignment tile (category, due date) with inline entry launcher.\line
+  - \b Pull-out Approvals\b0: stacked requests with student name(s), specialist, time window, conflict badges; Approve / Deny (reason required) / Propose Alternate.\line
+  - \b Alerts\b0: Missing work counts, grade drop flags (e.g., -10pts vs last week), absence streaks (3+ days), with deep links.\line
+  - \b Lesson Plan Shortcuts\b0: today’s plan snippets (objective, materials); “Open Plan” and “Start Presentation Mode.”\line
+D) \i Footer\i0: keyboard hints (Tab/Enter), accessibility toggle, sync status (online/offline).\line
+\line
+4.2 \ul Attendance Micro-flow\ulnone\line
+- Default status = Present until the attendance window closes, after which unresolved rows are auto-marked Present.\line
+- Bulk actions: Mark all Present; then exceptions edited inline.\line
+- Status set: Present, Absent–Excused, Absent–Unexcused, Tardy–Excused, Tardy–Unexcused.\line
+- Notes per student (shareable toggle). Audit all edits (user, timestamp, reason optional).\line
+\line
+4.3 \ul Grade Quick Entry\ulnone\line
+- Choose Category (Homework/Quiz/Test/Project/Independent Work/Participation) or “+ New Category.”\line
+- Enter Assignment title, max points, due date (defaults to today), and optional weight; click “Open Grid” to enter scores.\line
+- Auto-calc and real-time class average; missing/late toggles and policy hints.\line
+\line
+4.4 \ul Pull-out Approval Flow\ulnone\line
+- Card lists: student(s), specialist, capacity usage (e.g., 3/5), time conflict badges (e.g., overlaps with Test).\line
+- Actions: Approve; Deny (required reason list + optional free text); Propose Alternate (\i opens specialist availability picker with conflicts hidden\i0).\line
+- All actions generate notifications to requestor and log decision trail.\line
+\line
+4.5 \ul Alerts & Nudges\ulnone\line
+- Rule-based: grade drop > X points; missing > N items; attendance < Y% last 10 school days.\line
+- Each alert must show “Why am I seeing this?” with contributing facts and suggested actions (message family, schedule check-in, create intervention).\line
+\line
+4.6 \ul Global Search\ulnone\line
+- Search across Students (name, ID), Classes, Lessons, Assignments. Results are permission-scoped. Keyboard shortcut: \b /\b0 .\line
+\line
+\b 5) Non-Functional Requirements\b0\line
+- Performance: initial render \u8804? 1.5s p95; interactions sub-200ms where possible.\line
+- Reliability: graceful offline (read-only schedule; attendance queueing with conflict resolution on reconnect).\line
+- Accessibility: WCAG 2.1 AA; full keyboard support; screen-reader friendly landmark regions.\line
+- Localization: US English default; dates/times respect school TZ (US-only selection enforced platform-wide).\line
+- Telemetry: track time-to-complete attendance, quick grade entry duration, approval turnaround, alert action rate.\line
+\line
+\b 6) Data & API Contracts (illustrative)\b0\line
+GET /api/v1/classes/today?teacherId=... \line
+GET /api/v1/attendance/sheet?classId=...&date=... \line
+POST /api/v1/attendance/mark { studentId, status, note, reason? }\line
+POST /api/v1/assignments { classId, title, categoryId, points, dueDate, weight? }\line
+POST /api/v1/grades/bulk { assignmentId, entries:[{studentId, points, status?}] }\line
+GET /api/v1/pullouts/pending?teacherId=... \line
+POST /api/v1/pullouts/{id}/approve \line
+POST /api/v1/pullouts/{id}/deny { reasonCode, reasonText? }\line
+POST /api/v1/pullouts/{id}/propose { alternateSlotId }\line
+\line
+\b 7) UI/UX Annotations\b0\line
+- \i Responsive Grid\i0: 2-column layout on desktop; collapses to stacked cards on tablet.\line
+- \i Color System\i0: neutral background; high-contrast badges (Attendance = blue, Alerts = amber/red, Approvals = teal).\line
+- \i Components\i0: pill statuses, chip filters, compact tables with sticky headers, floating “+ New” button.\line
+- \i Empty States\i0: helpful copy with quick actions (e.g., “No assignments today — Create one”).\line
+\line
+\b 8) Security & Privacy\b0\line
+- FERPA-compliant; row-level security by roster; notes default to internal (share toggle required).\line
+- Audit every attendance/grade change (actor, timestamp, before/after, optional reason).\line
+- Permissions inherited from Phase A role model.\line
+\line
+\b 9) Error Handling & Edge Cases\b0\line
+- Offline attendance posts into an outbox; user warned about unsynced items.\line
+- Roster changes mid-day: banner prompts to refresh; entries reconcile on save.\line
+- Duplicate pull-out requests: grouped under one decision block.\line
+- Substitute mode: banner indicates restricted capabilities; actions audited under substitute account.\line
+\line
+\b 10) Acceptance Criteria\b0\line
+AC-1: Teacher can complete attendance for a 25-student class in \u8804? 2 minutes (p50), \u8804? 4 minutes (p95).\line
+AC-2: Creating a quick assignment and entering grades for 25 students takes \u8804? 5 minutes (p50).\line
+AC-3: Approving/denying a pull-out from the dashboard takes \u8804? 30 seconds.\line
+AC-4: Alerts always include explainability and an actionable next step.\line
+AC-5: Page loads in \u8804? 1.5s (p95) with district-scale test data.\line
+\line
+\b 11) Dependencies\b0\line
+- Auth + Role selection flow complete.\line
+- Classes, rosters, schedules (Phase A core) available.\line
+- Attendance, Gradebook, Pull-out APIs implemented.\line
+\line
+\b Appendix A — Textual Wireframe\b0\line
+[Top Bar]\line
+[Today Panel]\line
+  - 8:10–8:55 \tab Math – 4th Grade \tab Room 204 \tab Attendance: Not started\line
+  - 9:00–9:45 \tab Reading – 4th Grade \tab Room 204 \tab Attendance: Done\line
+[Action Cards]\line
+  - Attendance Quick Take (mini roster)\line
+  - Grade-at-a-Glance (Quick Add Assignment)\line
+  - Pull-out Approvals (Approve / Deny / Propose)\line
+  - Alerts (Missing Work, Grade Drops, Absence Streaks)\line
+  - Lesson Plan Shortcuts (Open / Present)\line
+\line
+\b Appendix B — Example Data Structures (abridged JSON)\b0\line
+{\ldblquote classesToday{\rdblquote :[{ \ldblquote id\rdblquote :\ldblquote c1\rdblquote , \ldblquote name\rdblquote :\ldblquote Math 4\rdblquote , \ldblquote start\rdblquote :\ldblquote 08:10\rdblquote , \ldblquote end\rdblquote :\ldblquote 08:55\rdblquote , \ldblquote room\rdblquote :\ldblquote 204\rdblquote , \ldblquote rosterCount\rdblquote :25, \ldblquote attendanceStatus\rdblquote :\ldblquote NOT_STARTED\rdblquote }]} \line
+{\ldblquote pulloutRequests\rdblquote :[{ \ldblquote id\rdblquote :\ldblquote p123\rdblquote , \ldblquote specialist\rdblquote :\ldblquote Ms. Rivera (Speech)\rdblquote , \ldblquote students\rdblquote :[\ldblquote S. Gomez\rdblquote ,\ldblquote L. Lee\rdblquote ], \ldblquote time\rdblquote :\ldblquote 10:15–10:45\rdblquote , \ldblquote capacity\rdblquote :\ldblquote 3/5\rdblquote , \ldblquote conflicts\rdblquote :[\ldblquote Reading test\rdblquote ]}]}\line
+\line
+\b Appendix C — Telemetry & KPIs\b0\line
+- Attendance time per block; completion rate by period.\line
+- Quick grade entry time and error corrections.\line
+- Approval turnaround time; denial reasons distribution.\line
+- Alert click-through and follow-up action rates.\line
+}

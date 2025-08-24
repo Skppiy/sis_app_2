@@ -1,0 +1,128 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Arial;}}
+\fs24
+\b Phase A \endash Login \& Role Selection \endash Design-Ready Requirements \b0\par
+\par
+\b 1) Scope \& Objectives \b0\par
+\bullet Provide secure authentication (email/password + optional SSO).\par
+\bullet Auto-route users to their primary role; if multiple roles, prompt a role picker with the most-used role preselected.\par
+\bullet Enforce US-only time zone selections during onboarding/profile update.\par
+\bullet Establish RBAC claims, session handling, audit logs, and rate limits used by later modules.\par
+\par
+\b Personas\b0: Teacher, Specialist, Admin (Principal, VP, Dean, Staff), Parent/Guardian, Student.\par
+\par
+\b 2) UX / UI Requirements\b0\par
+\b 2.1 Login Screen\b0\par
+Fields: Email, Password. Actions: Sign In, Forgot password?, optional SSO buttons. Errors inline. Branding: \i Private School Here\i0\~with mascot (sloth). Accessible and keyboard-friendly.\par
+\par
+\b 2.2 Post-Login Role Picker (shown only if multiple roles)\b0\par
+Card list of roles (Teacher, Specialist, Admin subtypes, Parent, Student) with most-recently used highlighted by default. Checkbox: \ldblquote Always use this role on sign-in\rdblquote . Context chips show school/year. Fully keyboard navigable.\par
+\par
+\b 2.3 Global Time Zone (US-only)\b0\par
+Dropdown limited to US zones (America/New\_York, America/Chicago, America/Denver, America/Los\_Angeles, America/Anchorage, Pacific/Honolulu, America/Phoenix). Set on first login if missing and editable in Profile.\par
+\par
+\b 3) Functional Requirements\b0\par
+\b 3.1 Authentication\b0: Email/password (bcrypt cost \u8805 ?12), optional OIDC/SAML SSO. JWT access (15\endash 30 min) + refresh (7\endash 30 days) \endash or secure HTTP-only session cookie (choose and document). Session/device tracking and revocation.\par
+\b 3.2 Role Resolution\b0: If one active role \endash proceed. If multiple \endash show picker, store preference, include selected role claim in token/session.\par
+\b 3.3 Account \& Lockout\b0: Progressive backoff (5 bad \endash 5 min, 10 bad \endash 30 min). Optional email verification gate. Password reset with short-lived signed token (15\endash 30 min), one-time use.\par
+\b 3.4 Audit \& Observability\b0: Log attempts (success/failure, ip, ua, method), role selections, and emit metrics (login\_success/failure, role\_picker\_shown, role\_selection\_confirmed, active\_sessions).\par
+\par
+\b 4) Validation Rules\b0\par
+Email RFC basic; Password \u2265 ?8 chars with letter+number (policy overrides allowed); Time zone must be in US list; Roles must be active for user+school+year; Enforce exp/nbf on tokens and bind refresh to session id.\par
+\par
+\b 5) API Design (REST)\b0\par
+\ul Auth\ulnone\par
+POST /auth/login \emdash Body: \{ email, password \} \emdash 200: \{ access\_token, refresh\_token?, expires\_in, requires\_role\_selection \} \emdash 401 on failure.\par
+POST /auth/refresh \emdash Body: \{ refresh\_token \} \emdash 200 new access token.\par
+POST /auth/logout \emdash Body: \{ refresh\_token \} \emdash 204.\par
+GET /auth/me \emdash 200: \{ user, roles[], active\_role \}.\par
+GET /auth/roles \emdash 200: roles[].\par
+POST /auth/select-role \emdash Body: \{ role, school\_id, remember\_preference? \} \emdash 200: active role (and optionally role-scoped token).\par
+POST /auth/request-password-reset \emdash Body: \{ email \} \emdash 202 always.\par
+POST /auth/reset-password \emdash Body: \{ token, new\_password \} \emdash 204.\par
+\par
+\ul Profile\ulnone\par
+PUT /profile/preferences \emdash Body: \{ time\_zone \} (US-only enforced) \emdash 200 updated profile.\par
+\par
+\b 6) Error Model (examples)\b0\par
+AUTH\_INVALID\_CREDENTIALS; AUTH\_ACCOUNT\_LOCKED; ROLE\_NOT\_AVAILABLE; TIMEZONE\_NOT\_ALLOWED; TOKEN\_EXPIRED/INVALID/REVOKED. Return \ldblquote code\rdblquote , \ldblquote message\rdblquote , \ldblquote traceId\rdblquote .\par
+\par
+\b 7) Data Model (PostgreSQL)\b0\par
+\li360
+\ttfamily
+CREATE TABLE users (\line
+  id UUID PRIMARY KEY DEFAULT gen\_random\_uuid(),\line
+  email CITEXT UNIQUE NOT NULL,\line
+  password\_hash TEXT,\line
+  first\_name TEXT NOT NULL,\line
+  last\_name TEXT NOT NULL,\line
+  time\_zone TEXT CHECK (time\_zone IN ('America/New\_York','America/Chicago','America/Denver','America/Los\_Angeles','America/Anchorage','Pacific/Honolulu','America/Phoenix')) DEFAULT 'America/New\_York',\line
+  email\_verified BOOLEAN DEFAULT FALSE,\line
+  is\_active BOOLEAN DEFAULT TRUE,\line
+  created\_at TIMESTAMPTZ DEFAULT now(),\line
+  updated\_at TIMESTAMPTZ DEFAULT now()\line
+);\line
+\line
+CREATE TYPE user\_role AS ENUM ('teacher','specialist','admin\_principal','admin\_vp','admin\_dean','admin\_staff','parent','student');\line
+\line
+CREATE TABLE user\_roles (\line
+  user\_id UUID REFERENCES users(id) ON DELETE CASCADE,\line
+  role user\_role NOT NULL,\line
+  school\_id UUID NOT NULL,\line
+  is\_active BOOLEAN DEFAULT TRUE,\line
+  last\_used\_at TIMESTAMPTZ,\line
+  PRIMARY KEY (user\_id, role, school\_id)\line
+);\line
+\line
+CREATE TABLE user\_role\_preferences (\line
+  user\_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,\line
+  role user\_role NOT NULL,\line
+  school\_id UUID NOT NULL\line
+);\line
+\line
+CREATE TABLE sessions (\line
+  id UUID PRIMARY KEY DEFAULT gen\_random\_uuid(),\line
+  user\_id UUID REFERENCES users(id) ON DELETE CASCADE,\line
+  refresh\_token\_hash TEXT NOT NULL,\line
+  user\_agent TEXT,\line
+  ip INET,\line
+  device\_hint TEXT,\line
+  created\_at TIMESTAMPTZ DEFAULT now(),\line
+  last\_used\_at TIMESTAMPTZ DEFAULT now(),\line
+  revoked\_at TIMESTAMPTZ\line
+);\line
+\line
+CREATE TABLE login\_audit (\line
+  id BIGSERIAL PRIMARY KEY,\line
+  user\_id UUID,\line
+  email CITEXT,\line
+  method TEXT NOT NULL,\line
+  success BOOLEAN NOT NULL,\line
+  reason TEXT,\line
+  ip INET,\line
+  user\_agent TEXT,\line
+  created\_at TIMESTAMPTZ DEFAULT now()\line
+);\line
+\rm\li0
+\par
+\b 8) Security \& Compliance\b0\par
+Passwords: bcrypt(12+), resets via signed short-lived tokens. JWT with rotating keys; refresh rotation \& revocation. Cookies (if used) HTTP-only, Secure, SameSite. RBAC enforced server-side. Immutable audit \u2265 ?3 years. Per-IP \& per-account rate limiting; optional CAPTCHA.\par
+\par
+\b 9) Integration Points\b0\par
+OIDC/SAML SSO, optional SCIM later; email provider for resets; logging/tracing via OpenTelemetry; feature flags for SSO and email verification per tenant.\par
+\par
+\b 10) Acceptance Criteria\b0\par
+Happy path (single role) \endash dashboard < 2s p95. Multi-role shows picker with default selected; \ldblquote Always use this role\rdblquote  persists. US time zones enforced. Lockout after 10 failures. Reset works and invalidates prior tokens. SSO maps by email without enumeration. JWT carries correct role claim.\par
+\par
+\b 11) Metrics & SLAs\b0\par
+p95 sign-in latency < 1200ms (non-SSO). Login success \u2265 ?99.5\%. Role picker median selection < 3s. Reset completion funnel tracked. All errors include traceId.\par
+\par
+\b 12) Example Payloads\b0\par
+/auth/login request: \{ email, password \}; 200 response includes access/refresh tokens and requires\_role\_selection flag. /auth/select-role sets active role with optional role-scoped token.\par
+\par
+\b 13) Test Plan (Outline)\b0\par
+Unit tests: password policy, JWT claims, time zone validation, role selection. Integration: login→role picker→dashboard; refresh; logout; locked user. E2E: UI flows (login, multi-role, reset, profile time zone). Security: token tamper, refresh replay, rate-limit, CSRF (if cookies).\par
+\par
+\b 14) Build Notes (Non-binding)\b0\par
+Backend: FastAPI or NestJS; PostgreSQL; SQLAlchemy/Prisma; JWT libs. Frontend: React+TS, React Router, React Query, Tailwind, Radix. Infra: Docker, CI, Sentry, feature flags.\par
+}

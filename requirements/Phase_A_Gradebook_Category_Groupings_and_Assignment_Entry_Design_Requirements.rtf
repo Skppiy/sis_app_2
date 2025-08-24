@@ -1,0 +1,143 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Calibri;}{\f1 Courier New;}}
+\fs22
+\b Phase A – Gradebook: Category Groupings \& Assignment Entry – Design Requirements\b0\par
+\par
+\i Purpose\i0\par
+Deliver a fast, flexible gradebook baseline that lets teachers define category groupings (Homework, Quizzes, Tests, Projects, Participation, etc.), create assignments, and enter grades quickly with clear calculations and auditability. This module is foundational for Phases B–F and must match the performance and UX bars set in Phase A.\par
+\par
+\b 1) Scope\b0\par
+This spec covers:\par
+\bullet Category groupings per class (weights, drop-lowest, defaults)\par
+\bullet Assignment creation (assignment-first \i and\i0  category-first flows)\par
+\bullet Inline, spreadsheet-speed grade entry\par
+\bullet Calculation rules (real-time)\par
+\bullet Visibility \& permissions\par
+\bullet Data model, APIs, validations, error handling\par
+\bullet UI screens \& interactions\par
+\bullet Accessibility, security, analytics, acceptance criteria\par
+\par
+\b 2) Roles \& Permissions\b0\par
+\ul Teacher\ulnone : VCE for own classes (categories, assignments, grades). \par
+\ul Admin (Principal/VP/Dean/Staff)\ulnone : V R all classes; configurable E for policies \& overrides. \par
+\ul Parent/Student\ulnone : View-only to student’s own data; no internal notes unless marked shareable. \par
+\par
+\b 3) Functional Requirements\b0\par
+\ul 3.1 Category Groupings\ulnone\par
+\bullet Per-class configuration: name, weight (Decimal >= 0, supports >1 or <1), drop-lowest (int >= 0), color (hex), active flag, display order.\par
+\bullet Default category (optional) for new assignments.\par
+\bullet Category library cloning when copying a class to a new term.\par
+\bullet Calculations must honor weights and drop-lowest rules.\par
+\par
+\ul 3.2 Assignment Creation\ulnone\par
+\bullet \b Assignment-first\b0 : New Assignment dialog: Title*, Description, Max Points*, Category (required if Max Points > 0), Weight (optional, overrides category), Due Date, Late Policy (inherit class default; override allowed), Extra Credit flag, Visibility (teacher/admin/parent-student summary).\par
+\bullet \b Category-first\b0 : Click a Category chip \-> Quick Add (Title*, optional Max Points/Weight). Instantly opens grade grid for entry.\par
+\bullet Inline create a new category within the dialog (no navigation away).\par
+\bullet Bulk-assign to multiple classes of the same teacher (optional; creates per-class instances).\par
+\par
+\ul 3.3 Grade Entry\ulnone\par
+\bullet Spreadsheet-speed grid: keyboard nav, arrow keys, Enter to advance, paste from clipboard (CSV-style), undo/redo (local session).\par
+\bullet Status per cell: Graded, Missing, Late, Excused, In Progress.\par
+\bullet Late penalties auto-applied per policy (percent or points). Visual hint shows penalty computation.\par
+\bullet Two calculation toggles for teacher view: Include Missing as 0; Exclude Missing.\par
+\bullet Comments per student/assignment; mark Shareable to expose to parent/student.\par
+\bullet Audit: who/when/old value/new value/reason (optional). Retain \u8805 3 years.\par
+\par
+\ul 3.4 Calculations\ulnone\par
+\bullet Per-assignment score = points\_earned / points\_possible (unless extra credit).\par
+\bullet Category grade = weighted average across assignments after applying drop-lowest within category.\par
+\bullet Overall grade = weighted sum of category grades normalized by active weights.\par
+\bullet Extra credit assignments add points without increasing points\_possible OR add percentage per policy.\par
+\par
+\ul 3.5 Visibility\ulnone\par
+\bullet Teachers \-> own classes; Admin \-> all; Parents/Students \-> student’s data (shareable comments only).\par
+\bullet Grade post/publish control per assignment (draft vs published).\par
+\par
+\b 4) Non-Functional Requirements\b0\par
+\bullet \b Performance\b0 : Grid load \u8804 1.5s p95 for 30 students x 10 assignments; keystroke-to-render \u8804 100ms.\par
+\bullet \b Reliability\b0 : Autosave every 3s or on blur; recover unsaved edits on refresh.\par
+\bullet \b Accessibility\b0 : WCAG 2.1 AA; full keyboard operability; ARIA live regions for calc updates.\par
+\bullet \b Security\b0 : FERPA, row-level \& field-level access; all changes audited.\par
+\par
+\b 5) Data Model (Phase A baseline)\b0\par
+\f1 tables:\par
+assignment\_categories(id UUID pk, class\_id UUID fk, name varchar, weight numeric(5,2), drop\_lowest int, color char(7), is\_active bool, display\_order int, created\_at ts)\par
+assignments(id UUID pk, class\_id UUID fk, category\_id UUID fk, title varchar, description text, points\_possible numeric(7,2), assigned\_date ts, due\_date ts, allow\_late bool, late\_penalty numeric(5,2), weight\_override numeric(5,2) null, is\_extra\_credit bool, is\_published bool, created\_by UUID, created\_at ts, updated\_at ts)\par
+grades(id UUID pk, assignment\_id UUID fk, student\_id UUID fk, points\_earned numeric(7,2) null, status enum('graded','missing','late','excused','in\_progress'), comments text, shareable bool, graded\_by UUID, graded\_date ts, created\_at ts, updated\_at ts, unique(assignment\_id, student\_id))\par
+grade\_history(id UUID pk, grade\_id UUID fk, previous\_points numeric, new\_points numeric, previous\_status text, new\_status text, reason varchar(500), changed\_by UUID, changed\_at ts)\par
+class\_policies(class\_id UUID pk, late\_policy\_type enum('percent','points'), late\_penalty numeric(5,2), calculate\_missing\_as\_zero bool)\par
+\f0\par
+\b 6) API Endpoints (REST, v1)\b0\par
+\ul Categories\ulnone\par
+GET /classes/{classId}/categories\par
+POST /classes/{classId}/categories {name, weight, dropLowest, color}\par
+PUT /categories/{id} {name?, weight?, dropLowest?, color?, isActive?, displayOrder?}\par
+\ul Assignments\ulnone\par
+GET /classes/{classId}/assignments?publishedOnly=\i bool\i0\par
+POST /classes/{classId}/assignments {title*, pointsPossible*, categoryId?, weightOverride?, dueDate?, latePolicy?, isExtraCredit?, isPublished?}\par
+PUT /assignments/{id} {...}\par
+\ul Grades\ulnone\par
+GET /assignments/{assignmentId}/grades\par
+PUT /grades/bulk {assignmentId, grades:[{studentId, pointsEarned, status?, comment?, shareable?}]}\par
+POST /grades/{gradeId}/override {pointsEarned?, status?, reason}\par
+\par
+Auth: Bearer JWT; scopes: read:gradebook, write:gradebook, admin:gradebook.\par
+\par
+\b 7) UI/UX Specification\b0\par
+\ul Screen A: Gradebook Grid (per class)\ulnone\par
+Layout: Left frozen column (Student Name). Columns per assignment, grouped visually under Category headers (colored). Header badges show Avg, Missing count. Top toolbar: Category chips (+ New), New Assignment, Filters, Include Missing toggle, Export.\par
+Cell states: Empty, Value, Missing (red badge), Late (clock icon), Excused (pill), In Progress (dot). Tooltip shows calculation breakdown on hover.\par
+\par
+\ul Screen B: New Assignment Dialog\ulnone\par
+Sections: Basics (Title*, Category, Max Points*), Policies (Late policy inherit/override, Extra credit), Schedule (Due date), Visibility (Publish now?). Inline “+ New Category”. Primary actions: Save Draft, Publish \& Open Grid.\par
+\par
+\ul Screen C: Manage Categories Drawer\ulnone\par
+Sortable list with Weight, Drop-lowest, Color. Live preview recalculates example.\par
+\par
+\b 8) Validation Rules\b0\par
+\bullet Title required (1–200 chars). \par
+\bullet points\_possible \u2265 0; if 0 then must be Extra Credit.\par
+\bullet weight and weight\_override \u2265 0.\par
+\bullet drop\_lowest \u2265 0 and \u2264 number of assignments in category.\par
+\bullet Late penalty 0–100 for percent; \u2265 0 for points.\par
+\bullet Unique (assignmentId, studentId) enforced.\par
+\par
+\b 9) Error Handling\b0\par
+\bullet Validation: 422 with field errors; keep user input; highlight fields.\par
+\bullet Concurrency: 409 if stale update; prompt to refresh or merge.\par
+\bullet Bulk import: partial success with per-row diagnostics; never discard valid rows.\par
+\par
+\b 10) Edge Cases\b0\par
+\bullet Student added/withdrawn mid-term: lock historical grades; mark as inactive for future entries.\par
+\bullet Category deactivated: remains for historical calc; hidden from new assignment choices.\par
+\bullet Weight sum = 0 (all inactive): show warning; overall grade set to N/A until at least one active weight.\par
+\bullet Extra credit only: overall can exceed 100% if policy allows; otherwise cap at 100 with note.\par
+\par
+\b 11) Analytics/KPIs\b0\par
+\bullet Grade entry throughput: 25 students in \u2264 5 minutes (p50). \par
+\bullet Time-to-publish after creation (median). \par
+\bullet % assignments with shareable comments.\par
+\bullet Data quality: % cells with status but no points when required.\par
+\par
+\b 12) Security \& Privacy\b0\par
+\bullet RBAC with row/column-level filters for student visibility.\par
+\bullet Audit all grade changes with actor \& reason. \par
+\bullet No PII in client logs; redact in exports by role.\par
+\par
+\b 13) Testing \& Acceptance\b0\par
+\ul Unit\ulnone : calc functions (weights, drop-lowest, extra credit, missing/late).\par
+\ul Integration\ulnone : create category \-> create assignment \-> bulk grade \-> publish \-> parent view.\par
+\ul Performance\ulnone : grid load p95; paste 25x10 and commit in \u2264 2s.\par
+\ul Accessibility\ulnone : keyboard-only path for entry; screen reader labels on cells.\par
+\par
+\b Acceptance Criteria\b0\par
+\bullet Teacher can create categories, add an assignment, and enter grades for 25 students in \u2264 5 minutes.\par
+\bullet Calculations update in real time \& match policy toggles.\par
+\bullet Parent/Student portals reflect published grades within 5 seconds.\par
+\bullet All edits are audited and exportable by admin.\par
+\par
+\b 14) Dependencies\b0\par
+\bullet Phase A: Classes, Students, Rosters, Auth \& Roles, Attendance (for analytics overlays later).\par
+\bullet Feeds Phase D (notifications), Phase E (analytics facts), Phase F (APIs/exports).\par
+\par
+}
