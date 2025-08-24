@@ -1,12 +1,16 @@
 // src/schemas/facilities.ts
 import { z } from "zod";
 
-// Room Types - matching backend enum
+// Room Types - matching ACTUAL backend data
 export const RoomTypes = [
   "CLASSROOM",
   "SPECIAL", 
   "OUTDOOR",
-  "MULTI_PURPOSE"
+  "MULTI_PURPOSE",
+  "OTHER",      // Backend has this
+  "ART",        // Backend has this  
+  "LIBRARY",    // Backend has this
+  "LAB"         // Backend has this
 ] as const;
 
 // Base Room Schema - matches backend RoomOut
