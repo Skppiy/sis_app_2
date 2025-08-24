@@ -5,10 +5,10 @@ import {
   Route,
   redirect,
 } from '@tanstack/react-router';
-import Login from '@pages/Login';
-import Dashboard from '@pages/Dashboard';
-import { AppShell } from '@layouts/AppShell';
-import { useAuth } from '@auth/AuthContext';
+import Login from '@/pages/Login';
+import Dashboard from '@/pages/Dashboard';
+import { AppShell } from '@/layouts/AppShell';
+import { useAuth } from '@/auth/AuthContext';
 
 const rootRoute = new RootRoute();
 
@@ -54,11 +54,39 @@ const dashboardRoute = new Route({
   component: Dashboard,
 });
 
-// Years route (child of app layout)
+// Academic Years route (child of app layout)
 const yearsRoute = new Route({
   getParentRoute: () => appLayoutRoute,
   path: '/years',
-  component: React.lazy(() => import('@features/academics/pages/YearsPage')),
+  component: React.lazy(() => import('@/features/academics/pages/YearsPage')),
+});
+
+// Subjects route (child of app layout)
+const subjectsRoute = new Route({
+  getParentRoute: () => appLayoutRoute,
+  path: '/subjects',
+  component: React.lazy(() => import('@/features/academics/pages/SubjectsPage')),
+});
+
+// Classrooms route (child of app layout)
+const classroomsRoute = new Route({
+  getParentRoute: () => appLayoutRoute,
+  path: '/classrooms',
+  component: React.lazy(() => import('@/features/academics/pages/ClassroomsPage')),
+});
+
+// Rooms route (child of app layout) - NEW
+const roomsRoute = new Route({
+  getParentRoute: () => appLayoutRoute,
+  path: '/rooms',
+  component: React.lazy(() => import('@/features/facilities/pages/RoomsPage')),
+});
+
+// Students route (child of app layout)
+const studentsRoute = new Route({
+  getParentRoute: () => appLayoutRoute,
+  path: '/students',
+  component: React.lazy(() => import('@/features/enrollment/pages/StudentsPage')),
 });
 
 // Root redirect to login
@@ -74,7 +102,14 @@ const indexRoute = new Route({
 export const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
-  appLayoutRoute.addChildren([dashboardRoute, yearsRoute])
+  appLayoutRoute.addChildren([
+    dashboardRoute, 
+    yearsRoute, 
+    subjectsRoute,
+    classroomsRoute,
+    roomsRoute, // Added rooms route
+    studentsRoute
+  ])
 ]);
 
 // Create router
