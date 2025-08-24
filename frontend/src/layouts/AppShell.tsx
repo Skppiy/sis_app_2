@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { AppBar, Box, Button, Toolbar, Typography } from '@mui/material';
-import { Link } from '@tanstack/react-router';
+import { Link, Outlet } from '@tanstack/react-router';
 import { useAuth } from '@auth/AuthContext';
 
 export function AppShell() {
@@ -17,15 +17,10 @@ export function AppShell() {
         </Toolbar>
       </AppBar>
       <Box sx={{ p: 3 }}>
-        <React.Suspense fallback={null}>
+        <React.Suspense fallback={<div>Loading...</div>}>
           <Outlet />
         </React.Suspense>
       </Box>
     </Box>
   );
-}
-
-function Outlet() {
-  // TanStack Router renders matched child here
-  return <div data-tsr-outlet />;
 }
