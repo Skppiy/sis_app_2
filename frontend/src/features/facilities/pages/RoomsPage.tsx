@@ -19,7 +19,8 @@ import {
   Select,
   MenuItem,
   FormControlLabel,
-  Switch
+  Switch,
+  CircularProgress
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -28,15 +29,121 @@ import {
   Info as InfoIcon,
   FilterList as FilterIcon
 } from '@mui/icons-material';
-import { DataGrid, GridColDef, GridActionsCellItem, GridRowParams } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, GridActionsCellItem, GridRowParams, GridRenderCellParams } from '@mui/x-data-grid';
+import { useQuery } from '@tanstack/react-query';
 import { useRooms } from '../hooks/useRooms';
 import { RoomFormDialog } from '../components/RoomFormDialog';
 import { Room, RoomCreate, RoomUpdate, RoomTypes } from '@/schemas/facilities';
 import { useAuth } from '@/auth/AuthContext';
+import { apiFetch } from '@/api/requestHelper';
+
+// Type for room usage data
+interface RoomUsageInfo {
+  room: {
+    id: string;
+    name: string;
+    code: string;
+    type: string;
+    capacity: number;
+  };
+  is_available: boolean;
+  assigned_classrooms: Array<{
+    id: string;
+    name: string;
+    grade_level: string | null;
+    subject: string | null;
+  }>;
+  usage_count: number;
+}
+
+// Hook to fetch usage for a specific room
+function useRoomUsage(roomId: string) {
+  return useQuery({
+    queryKey: ['room-usage', roomId],
+    queryFn: async () => {
+      const data = await apiFetch<RoomUsageInfo>(`/rooms/${roomId}/usage`);
+      return data;
+    },
+    enabled: !!roomId,
+    staleTime: 30_000, // 30 seconds
+  });
+}
+
+// Usage Cell Component
+function UsageCell({ roomId }: { roomId: string }) {
+  const { data: usage, isLoading, error } = useRoomUsage(roomId);
+
+  if (isLoading) {
+    return (
+      <Box display="flex" alignItems="center" gap={1}>
+        <CircularProgress size={16} />
+        <Typography variant="caption">Loading...</Typography>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Chip 
+        label="Error" 
+        color="error" 
+        size="small" 
+        variant="outlined"
+      />
+    );
+  }
+
+  if (!usage || usage.is_available) {
+    return (
+      <Chip 
+        label="Available" 
+        color="success" 
+        size="small" 
+        variant="outlined"
+      />
+    );
+  }
+
+  // Show first classroom assignment (most common case)
+  const firstClassroom = usage.assigned_classrooms[0];
+  if (!firstClassroom) {
+    return (
+      <Chip 
+        label="Available" 
+        color="success" 
+        size="small" 
+        variant="outlined"
+      />
+    );
+  }
+
+  const displayText = firstClassroom.grade_level 
+    ? `${firstClassroom.name} (Grade ${firstClassroom.grade_level})`
+    : firstClassroom.name;
+
+  const hasMultiple = usage.assigned_classrooms.length > 1;
+
+  return (
+    <Tooltip 
+      title={
+        hasMultiple 
+          ? `${usage.assigned_classrooms.length} classrooms assigned`
+          : `Subject: ${firstClassroom.subject || 'N/A'}`
+      }
+    >
+      <Chip 
+        label={hasMultiple ? `${displayText} +${usage.assigned_classrooms.length - 1}` : displayText}
+        color="primary" 
+        size="small" 
+        variant="filled"
+      />
+    </Tooltip>
+  );
+}
 
 export default function RoomsPage() {
   const { user } = useAuth();
-  const { list, create, update, remove, getRoomUsage } = useRooms();
+  const { list, create, update, remove } = useRooms();
   
   // Modal states
   const [formOpen, setFormOpen] = React.useState(false);
@@ -144,22 +251,22 @@ export default function RoomsPage() {
       field: 'name',
       headerName: 'Room Name',
       flex: 1,
-      minWidth: 150
+      minWidth: 150,
     },
     {
       field: 'room_code',
       headerName: 'Code',
-      width: 100
+      width: 100,
     },
     {
       field: 'room_type',
       headerName: 'Type',
-      width: 130,
-      renderCell: (params) => (
+      width: 120,
+      renderCell: (params: GridRenderCellParams) => (
         <Chip 
-          label={params.value?.replace('_', ' ')} 
-          size="small"
-          variant="outlined"
+          label={params.value.replace('_', ' ')} 
+          size="small" 
+          variant="outlined" 
         />
       )
     },
@@ -167,34 +274,46 @@ export default function RoomsPage() {
       field: 'capacity',
       headerName: 'Capacity',
       type: 'number',
-      width: 90
+      width: 90,
     },
     {
-      field: 'equipment',
-      headerName: 'Equipment',
+      field: 'usage',
+      headerName: 'Usage',
       width: 200,
-      renderCell: (params) => {
-        const room = params.row as Room;
-        const equipment = [];
-        if (room.has_projector) equipment.push('Projector');
-        if (room.has_computers) equipment.push('Computers');
-        if (room.has_smartboard) equipment.push('Smart Board');
-        if (room.has_sink) equipment.push('Sink');
-        
-        return (
-          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-            {equipment.map((item) => (
-              <Chip key={item} label={item} size="small" />
-            ))}
-          </Box>
-        );
-      }
+      sortable: false,
+      renderCell: (params: GridRenderCellParams) => (
+        <UsageCell roomId={params.row.id} />
+      )
+    },
+    {
+      field: 'has_projector',
+      headerName: 'Projector',
+      width: 100,
+      renderCell: (params: GridRenderCellParams) => (
+        <Chip 
+          label={params.value ? 'Yes' : 'No'}
+          color={params.value ? 'success' : 'default'}
+          size="small"
+        />
+      )
+    },
+    {
+      field: 'has_computers',
+      headerName: 'Computers',
+      width: 110,
+      renderCell: (params: GridRenderCellParams) => (
+        <Chip 
+          label={params.value ? 'Yes' : 'No'}
+          color={params.value ? 'success' : 'default'}
+          size="small"
+        />
+      )
     },
     {
       field: 'is_bookable',
       headerName: 'Bookable',
       width: 100,
-      renderCell: (params) => (
+      renderCell: (params: GridRenderCellParams) => (
         <Chip 
           label={params.value ? 'Yes' : 'No'}
           color={params.value ? 'success' : 'default'}
@@ -258,32 +377,28 @@ export default function RoomsPage() {
               Filters
             </Button>
             <Button
-              variant="contained"
               startIcon={<AddIcon />}
               onClick={handleCreateRoom}
+              variant="contained"
             >
               Add Room
             </Button>
           </Box>
         </Box>
 
-        {error && (
-          <Alert severity="error" onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-
+        {/* Filters Panel */}
         {filtersOpen && (
-          <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
+          <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
             <Stack spacing={2}>
-              <Typography variant="subtitle1">Filters</Typography>
+              <Typography variant="h6">Filters</Typography>
+              
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <FormControl sx={{ minWidth: 120 }}>
+                <FormControl size="small" sx={{ minWidth: 120 }}>
                   <InputLabel>Room Type</InputLabel>
                   <Select
                     value={filters.room_type}
-                    label="Room Type"
                     onChange={(e) => setFilters(prev => ({ ...prev, room_type: e.target.value }))}
+                    label="Room Type"
                   >
                     <MenuItem value="">All Types</MenuItem>
                     {RoomTypes.map((type) => (

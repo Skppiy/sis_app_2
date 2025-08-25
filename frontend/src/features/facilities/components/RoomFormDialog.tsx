@@ -47,7 +47,7 @@ export function RoomFormDialog({
     control,
     handleSubmit,
     reset,
-    formState: { errors, isDirty }
+    formState: { errors }
   } = useForm<RoomCreate | RoomUpdate>({
     resolver: zodResolver(schema),
     defaultValues: isEdit ? {
@@ -106,15 +106,6 @@ export function RoomFormDialog({
     }
   }, [open, isEdit, room, reset, schoolId]);
 
-  const handleFormSubmit = async (data: RoomCreate | RoomUpdate) => {
-    try {
-      await onSubmit(data);
-      onClose();
-    } catch (err) {
-      // Error handling is done by parent component
-    }
-  };
-
   return (
     <Dialog 
       open={open} 
@@ -122,11 +113,11 @@ export function RoomFormDialog({
       maxWidth="sm" 
       fullWidth
     >
-      <form onSubmit={handleSubmit(handleFormSubmit)}>
-        <DialogTitle>
-          {isEdit ? 'Edit Room' : 'Create New Room'}
-        </DialogTitle>
-        
+      <DialogTitle>
+        {isEdit ? 'Edit Room' : 'Create New Room'}
+      </DialogTitle>
+      
+      <form onSubmit={handleSubmit(async (data) => { await onSubmit(data); onClose(); })}>
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
             {error && (
@@ -266,7 +257,7 @@ export function RoomFormDialog({
           <Button 
             type="submit" 
             variant="contained" 
-            disabled={isLoading || !isDirty}
+            disabled={isLoading}
           >
             {isLoading ? 'Saving...' : (isEdit ? 'Update' : 'Create')}
           </Button>

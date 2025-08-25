@@ -52,7 +52,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Fetch user profile with token
   const fetchUserProfile = async (authToken: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      // Use /auth/context instead of /auth/me to get full context including school info
+      const response = await fetch(`${API_BASE_URL}/auth/context`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json',
@@ -61,8 +62,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (response.ok) {
         const result = await response.json();
-        // Backend returns { user: { ... } }
-        setUser(result.user);
+        // Backend returns { user: { ... }, roles: [...], schools: [...] }
+        
+        // Extract school_id from roles (use first active role's school_id)
+        let schoolId = '';
+        if (result.roles && result.roles.length > 0) {
+          const activeRole = result.roles.find((r: any) => r.is_active) || result.roles[0];
+          schoolId = activeRole.school_id;
+        }
+
+        // Extract role from roles array (use first active role)
+        let userRole: 'admin' | 'teacher' | 'student' = 'student';
+        if (result.roles && result.roles.length > 0) {
+          const activeRole = result.roles.find((r: any) => r.is_active) || result.roles[0];
+          // Map backend role to frontend role
+          if (activeRole.role.toLowerCase().includes('admin') || 
+              activeRole.role.toLowerCase().includes('principal') ||
+              activeRole.role.toLowerCase().includes('staff')) {
+            userRole = 'admin';
+          } else if (activeRole.role.toLowerCase().includes('teacher')) {
+            userRole = 'teacher';
+          }
+        }
+
+        // Create user object with school_id
+        const userWithSchool: User = {
+          id: result.user.id,
+          email: result.user.email,
+          first_name: result.user.first_name,
+          last_name: result.user.last_name,
+          role: userRole,
+          school_id: schoolId
+        };
+
+        setUser(userWithSchool);
       } else {
         // Token invalid, clear it
         localStorage.removeItem('token');

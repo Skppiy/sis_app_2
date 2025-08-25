@@ -17,12 +17,12 @@ export const YearsAPI = {
   create: (data: AcademicYearCreate) =>
     apiFetch<AcademicYear>("/academic-years", {
       method: "POST",
-      body: JSON.stringify(data),
+      json: data, // ✅ Use json helper instead of manual body
     }),
   update: (id: string, data: AcademicYearUpdate) =>
     apiFetch<AcademicYear>(`/academic-years/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
+      method: "PUT", 
+      json: data, // ✅ Use json helper instead of manual body
     }),
   remove: (id: string) =>
     apiFetch<void>(`/academic-years/${id}`, { method: "DELETE" }),
