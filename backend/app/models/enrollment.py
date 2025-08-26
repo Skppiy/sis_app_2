@@ -1,5 +1,6 @@
-# backend/app/models/enrollment.py
-# CLEAN ENROLLMENT MODEL - Final Version with academic_year_id
+# FILE: backend/app/models/enrollment.py
+# TYPE: FULL REPLACEMENT
+# PATH: backend/app/models/enrollment.py
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Date, Boolean, ForeignKey, Text, Integer, Numeric
@@ -13,6 +14,7 @@ class Enrollment(Base):
     """
     Student enrollment in specific classroom sections.
     Tracks the complete enrollment lifecycle with academic and administrative data.
+    UPDATED: Added grade_level field for proper grade tracking per enrollment.
     """
     __tablename__ = "enrollments"
 
@@ -29,6 +31,13 @@ class Enrollment(Base):
         ForeignKey("academic_years.id"), 
         nullable=True,
         comment="Academic year for this enrollment"
+    )
+    
+    # ADDED: Grade level for this enrollment (industry standard)
+    grade_level: Mapped[str] = mapped_column(
+        String(10), 
+        nullable=False,
+        comment="Student's grade level for this enrollment period"
     )
     
     # Enrollment lifecycle tracking
@@ -58,41 +67,21 @@ class Enrollment(Base):
     def __repr__(self):
         student_name = f"{self.student.first_name} {self.student.last_name}" if self.student else "Unknown Student"
         classroom_name = self.classroom.name if self.classroom else "Unknown Classroom"
-        return f"<Enrollment {student_name} in {classroom_name} ({self.enrollment_status})>"
+        grade = f" Grade {self.grade_level}" if self.grade_level else ""
+        return f"<Enrollment {student_name} in {classroom_name}{grade} ({self.enrollment_status})>"
     
     # Computed properties
     @property
     def full_name(self):
         """Get student's full name"""
-        return f"{self.student.first_name} {self.student.last_name}" if self.student else "Unknown Student"
+        return self.student.full_name if self.student else "Unknown"
     
     @property
     def classroom_name_prop(self):
-        """Get classroom name"""
+        """Get classroom name for display"""
         return self.classroom.name if self.classroom else "Unknown Classroom"
     
     @property
-    def is_currently_active(self):
-        """Check if enrollment is currently active"""
-        return self.is_active and self.enrollment_status == "ACTIVE"
-    
-    @property
-    def academic_year_name(self):
-        """Get academic year name"""
-        return self.academic_year.name if self.academic_year else "Unknown Year"
-    
-    # Business logic methods
-    def withdraw(self, reason=None, withdrawal_date=None):
-        """Withdraw student from classroom"""
-        self.enrollment_status = "WITHDRAWN"
-        self.is_active = False
-        self.withdrawal_date = withdrawal_date or date.today()
-        if reason:
-            self.withdrawal_reason = reason
-    
-    def reactivate(self):
-        """Reactivate a withdrawn enrollment"""
-        if self.enrollment_status == "WITHDRAWN":
-            self.enrollment_status = "ACTIVE"
-            self.is_active = True
-            self.withdrawal_date = None
+    def is_current(self):
+        """Check if this is a current enrollment"""
+        return self.is_active and not self.withdrawal_date

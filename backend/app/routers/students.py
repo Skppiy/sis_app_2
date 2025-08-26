@@ -141,53 +141,58 @@ async def get_student(
         print(f"❌ ERROR in get_student: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# UPDATE: create_student function
 @router.post("", response_model=StudentOut, status_code=status.HTTP_201_CREATED)
 async def create_student(
     payload: StudentCreate,
     session: AsyncSession = Depends(get_db),
+    current_user: any = Depends(get_current_user),
     _: any = Depends(require_admin),
 ):
-    """Create a new student - Following your working router patterns"""
+    """Create a new student with proper grade level initialization"""
     try:
-        # Check for duplicate student_id if provided (like your other routers)
-        if payload.student_id:
-            existing_student = await session.execute(
-                select(Student).where(Student.student_id == payload.student_id)
-            )
-            if existing_student.scalar_one_or_none():
-                raise HTTPException(status_code=400, detail="Student ID already exists")
+        # Get school_id from current user's context
+        from ..models.user_role import UserRole
         
-        # Check for duplicate email if provided
-        if payload.email:
-            existing_email = await session.execute(
-                select(Student).where(Student.email == payload.email)
+        user_roles = await session.execute(
+            select(UserRole).where(
+                UserRole.user_id == current_user.id,
+                UserRole.is_active == True
             )
-            if existing_email.scalar_one_or_none():
-                raise HTTPException(status_code=400, detail="Email already exists")
+        )
+        user_role = user_roles.scalars().first()
         
+        if not user_role or not user_role.school_id:
+            raise HTTPException(status_code=400, detail="No active school found for user")
+        
+        school_id = user_role.school_id
+        
+        # Check for duplicate student_id if provided
         if payload.student_id:
-            dup = await session.execute(
-                select(Student.id).where(
-                    (Student.school_id == payload.school_id) &
-                    (Student.student_id == payload.student_id)
+            existing = await session.execute(
+                select(Student).where(
+                    and_(
+                        Student.school_id == school_id,
+                        Student.student_id == payload.student_id
+                    )
                 )
             )
-            if dup.scalar_one_or_none():
-                raise HTTPException(status_code=409, detail="Student ID already exists in this school")
+            if existing.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="Student ID already exists at this school")
         
-        # Create student (following your model patterns)
-        student_id = payload.student_id or await generate_next_student_id(session, payload.school_id)
-
+        # Create student with both entry and current grade levels
         student = Student(
             id=uuid.uuid4(),
+            school_id=school_id,
             first_name=payload.first_name,
             last_name=payload.last_name,
             email=payload.email,
             date_of_birth=payload.date_of_birth,
             student_id=payload.student_id,
-            entry_date=payload.entry_date,
+            entry_date=payload.entry_date or date.today(),
             entry_grade_level=payload.entry_grade_level,
-            school_id=school_id,
+            # IMPORTANT: Set current grade to entry grade on creation
+            current_grade_level=payload.entry_grade_level,
             is_active=True
         )
         
@@ -195,8 +200,11 @@ async def create_student(
         await session.commit()
         await session.refresh(student)
         
-        # Set current_grade for response
-        student.current_grade = payload.entry_grade_level
+        # Load school relationship before returning
+        result = await session.execute(
+            select(Student).options(joinedload(Student.school)).where(Student.id == student.id)
+        )
+        student = result.scalar_one_or_none()
         
         return student
         
@@ -204,8 +212,71 @@ async def create_student(
         raise
     except Exception as e:
         await session.rollback()
-        print(f"❌ ERROR in create_student: {str(e)}")
+        logging.error(f"Failed to create student: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to create student")
+
+
+@router.post("/promote", response_model=dict)
+async def promote_students(
+    academic_year_id: str = Query(..., description="Target academic year"),
+    grade_level: Optional[str] = Query(None, description="Specific grade to promote"),
+    session: AsyncSession = Depends(get_db),
+    _: any = Depends(require_admin),
+):
+    """Bulk promote students to next grade level"""
+    try:
+        from ..models.academic_year import AcademicYear
+        
+        # Verify academic year exists
+        target_year = await session.get(AcademicYear, UUID(academic_year_id))
+        if not target_year:
+            raise HTTPException(status_code=404, detail="Academic year not found")
+        
+        # Build query for students to promote
+        query = select(Student).where(Student.is_active == True)
+        
+        if grade_level:
+            # Promote only specific grade
+            query = query.where(Student.current_grade_level == grade_level)
+        else:
+            # Promote all except graduated
+            query = query.where(Student.current_grade_level != 'GRADUATED')
+        
+        result = await session.execute(query)
+        students = result.scalars().all()
+        
+        promoted_count = 0
+        held_back = []
+        graduated = []
+        
+        for student in students:
+            # Check if student can be promoted (could add logic here for grades, attendance, etc.)
+            old_grade = student.current_grade_level
+            
+            if student.promote_to_next_grade():
+                promoted_count += 1
+                
+                if student.current_grade_level == 'GRADUATED':
+                    graduated.append(f"{student.full_name}")
+                    student.is_active = False  # Mark graduated students as inactive
+            else:
+                held_back.append(f"{student.full_name} (Grade {old_grade})")
+        
+        await session.commit()
+        
+        return {
+            "promoted": promoted_count,
+            "graduated": graduated,
+            "held_back": held_back,
+            "message": f"Successfully promoted {promoted_count} students"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        logging.error(f"Failed to promote students: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to promote students")
 
 @router.put("/{student_id}", response_model=StudentOut)
 async def update_student(

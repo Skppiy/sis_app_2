@@ -211,13 +211,34 @@ export default function StudentsPage() {
     },
     {
       field: 'entry_grade_level',
-      headerName: 'Grade',
+      headerName: 'Entry Grade',
       width: 100,
       renderCell: (params) => {
         const grade = GRADE_LEVELS.find(g => g.value === params.value);
-        return grade ? grade.label : params.value;
+        return (
+          <Tooltip title="Grade when enrolled">
+            <span style={{ opacity: 0.7 }}>{grade ? grade.label : params.value}</span>
+          </Tooltip>
+        );
       },
     },
+    {
+      field: 'current_grade_level',
+      headerName: 'Current Grade',
+      width: 110,
+      renderCell: (params) => {
+        const grade = GRADE_LEVELS.find(g => g.value === params.value);
+        const isPromoted = params.value !== params.row.entry_grade_level;
+        return (
+          <Chip
+            label={grade ? grade.label : params.value}
+            color={isPromoted ? 'primary' : 'default'}
+            size="small"
+            variant={isPromoted ? 'filled' : 'outlined'}
+          />
+        );
+      },
+    },    
     {
       field: 'email',
       headerName: 'Email',
@@ -231,6 +252,7 @@ export default function StudentsPage() {
       renderCell: (params) => 
         params.value ? format(new Date(params.value), 'MM/dd/yyyy') : '-',
     },
+
     {
       field: 'is_active',
       headerName: 'Status',
@@ -295,7 +317,7 @@ export default function StudentsPage() {
       active_only: true,
     });
     const withdrawMutation = useWithdrawEnrollment(student.id);
-
+  
     const handleWithdraw = async (enrollmentId: string) => {
       try {
         await withdrawMutation.mutateAsync(enrollmentId);
@@ -303,13 +325,13 @@ export default function StudentsPage() {
         console.error('Failed to withdraw enrollment:', error);
       }
     };
-
+  
     if (isLoading) return <Typography>Loading enrollments...</Typography>;
-
+  
     return (
       <Box sx={{ p: 2, bgcolor: 'grey.50' }}>
         <Typography variant="subtitle2" gutterBottom>
-          Current Enrollments
+          Current Enrollments (Grade {student.current_grade_level})
         </Typography>
         {enrollments.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
@@ -321,7 +343,18 @@ export default function StudentsPage() {
               <ListItem key={enrollment.id}>
                 <SchoolIcon sx={{ mr: 2, color: 'primary.main' }} />
                 <ListItemText
-                  primary={enrollment.classroom_name || 'Unknown Class'}
+                  primary={
+                    <>
+                      {enrollment.classroom_name || 'Unknown Class'}
+                      {enrollment.grade_level && (
+                        <Chip 
+                          label={`Grade ${enrollment.grade_level}`} 
+                          size="small" 
+                          sx={{ ml: 1 }}
+                        />
+                      )}
+                    </>
+                  }
                   secondary={`Enrolled: ${
                     enrollment.enrollment_date 
                       ? format(new Date(enrollment.enrollment_date), 'MM/dd/yyyy')
@@ -410,11 +443,16 @@ export default function StudentsPage() {
       </Paper>
 
       {/* Create Dialog */}
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
-        <form onSubmit={handleSubmit(handleCreate)}>
-          <DialogTitle>Add New Student</DialogTitle>
-          <DialogContent>
-            <Grid container spacing={2} sx={{ mt: 1 }}>
+      <Dialog open={enrollDialogOpen} onClose={() => setEnrollDialogOpen(false)} maxWidth="sm" fullWidth>
+  <form onSubmit={enrollForm.handleSubmit(handleEnroll)}>
+    <DialogTitle>
+      Enroll Student: {selectedStudent?.first_name} {selectedStudent?.last_name}
+      <Typography variant="caption" display="block" color="text.secondary">
+        Current Grade: {selectedStudent?.current_grade_level}
+      </Typography>
+    </DialogTitle>
+    <DialogContent>
+      <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={6}>
                 <Controller
                   name="first_name"
@@ -531,6 +569,72 @@ export default function StudentsPage() {
                       InputLabelProps={{ shrink: true }}
                       error={!!errors.entry_date}
                       helperText={errors.entry_date?.message}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Controller
+                  name="classroom_id"
+                  control={enrollForm.control}
+                  rules={{ required: 'Please select a classroom' }}
+                  render={({ field, fieldState }) => (
+                    <FormControl fullWidth error={!!fieldState.error}>
+                      <InputLabel>Classroom</InputLabel>
+                      <Select {...field} label="Classroom">
+                        {availableClassrooms.map((classroom) => (
+                          <MenuItem key={classroom.id} value={classroom.id}>
+                            {classroom.name} - {classroom.subject?.name || 'No Subject'} 
+                            {classroom.room && ` (${classroom.room.name})`}
+                            {classroom.grade_level && ` - Grade ${classroom.grade_level}`}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      {fieldState.error && (
+                        <Typography variant="caption" color="error">
+                          {fieldState.error.message}
+                        </Typography>
+                      )}
+                    </FormControl>
+                  )}
+                />
+              </Grid>
+        
+              <Grid item xs={6}>
+                <Controller
+                  name="grade_level"
+                  control={enrollForm.control}
+                  defaultValue={selectedStudent?.current_grade_level || ''}
+                  render={({ field }) => (
+                    <FormControl fullWidth>
+                      <InputLabel>Grade Level for Enrollment</InputLabel>
+                      <Select {...field} label="Grade Level for Enrollment">
+                        {GRADE_LEVELS.map((grade) => (
+                          <MenuItem key={grade.value} value={grade.value}>
+                            {grade.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      <FormHelperText>
+                        Usually matches current grade ({selectedStudent?.current_grade_level})
+                      </FormHelperText>
+                    </FormControl>
+                  )}
+                />
+              </Grid>
+        
+              <Grid item xs={6}>
+                <Controller
+                  name="enrollment_date"
+                  control={enrollForm.control}
+                  defaultValue={format(new Date(), 'yyyy-MM-dd')}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="Enrollment Date"
+                      type="date"
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
                     />
                   )}
                 />

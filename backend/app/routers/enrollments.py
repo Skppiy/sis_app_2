@@ -114,7 +114,7 @@ async def create_enrollment(
     session: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
-    """Create a new enrollment with validation"""
+    """Create a new enrollment with grade level"""
     try:
         # Validate student exists
         student_result = await session.execute(
@@ -157,25 +157,31 @@ async def create_enrollment(
             )
             current_count = current_enrollment_result.scalar()
             if current_count >= classroom.max_students:
-                raise HTTPException(status_code=409, detail="Classroom is at capacity")
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Classroom is at capacity ({classroom.max_students} students)"
+                )
         
-        # Create enrollment with proper async operations
-        db_enrollment = Enrollment(
+        # Create enrollment with grade level
+        enrollment = Enrollment(
             student_id=UUID(payload.student_id),
             classroom_id=UUID(payload.classroom_id),
+            academic_year_id=classroom.academic_year_id,  # Use classroom's academic year
+            # IMPORTANT: Use provided grade or default to student's current grade
+            grade_level=payload.grade_level or student.current_grade_level,
             enrollment_date=payload.enrollment_date or date.today(),
             enrollment_status=payload.enrollment_status,
+            is_active=True,
             is_audit_only=payload.is_audit_only,
             requires_accommodation=payload.requires_accommodation,
-            enrolled_by=current_user.id,
-            is_active=True
+            enrolled_by=current_user.id
         )
         
-        session.add(db_enrollment)
+        session.add(enrollment)
         await session.commit()
-        await session.refresh(db_enrollment)
+        await session.refresh(enrollment)
         
-        return db_enrollment
+        return enrollment
         
     except HTTPException:
         raise
