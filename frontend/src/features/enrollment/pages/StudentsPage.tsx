@@ -25,6 +25,7 @@ import {
   ListItem,
   ListItemText,
   ListItemSecondaryAction,
+  FormHelperText,
 } from '@mui/material';
 import {
   DataGrid,
@@ -115,9 +116,11 @@ export default function StudentsPage() {
   const enrollForm = useForm({
     defaultValues: {
       classroom_id: '',
+      grade_level: '',  // ADD: grade level field
       enrollment_date: format(new Date(), 'yyyy-MM-dd'),
     },
   });
+  
 
   // Toggle row expansion
   const toggleRowExpansion = (studentId: string) => {
@@ -168,21 +171,23 @@ export default function StudentsPage() {
 
   // Handle enroll
   const handleEnroll = async (data: any) => {
-    if (!selectedStudent) return;
-    try {
-      await enrollMutation.mutateAsync({
-        student_id: selectedStudent.id,
-        classroom_id: data.classroom_id,
-        enrollment_date: data.enrollment_date,
-      });
-      setEnrollDialogOpen(false);
-      enrollForm.reset();
-    } catch (error) {
-      console.error('Failed to enroll student:', error);
-    }
-  };
+  if (!selectedStudent) return;
+  try {
+    await enrollMutation.mutateAsync({
+      student_id: selectedStudent.id,
+      classroom_id: data.classroom_id,
+      grade_level: data.grade_level || selectedStudent.current_grade_level,  // Include grade level
+      enrollment_date: data.enrollment_date,
+    });
+    setEnrollDialogOpen(false);
+    enrollForm.reset();
+  } catch (error) {
+    console.error('Failed to enroll student:', error);
+  }
+};
 
   // DataGrid columns
+  // DataGrid columns - FIXED valueGetter syntax
   const columns: GridColDef[] = [
     {
       field: 'expand',
@@ -207,7 +212,12 @@ export default function StudentsPage() {
       field: 'name',
       headerName: 'Name',
       width: 200,
-      valueGetter: (params) => `${params.row.first_name} ${params.row.last_name}`,
+      // FIX: Use renderCell instead of valueGetter for computed fields
+      renderCell: (params: GridRenderCellParams) => {
+        const firstName = params.row?.first_name || '';
+        const lastName = params.row?.last_name || '';
+        return `${firstName} ${lastName}`.trim() || '-';
+      },
     },
     {
       field: 'entry_grade_level',
@@ -228,7 +238,7 @@ export default function StudentsPage() {
       width: 110,
       renderCell: (params) => {
         const grade = GRADE_LEVELS.find(g => g.value === params.value);
-        const isPromoted = params.value !== params.row.entry_grade_level;
+        const isPromoted = params.value !== params.row?.entry_grade_level;
         return (
           <Chip
             label={grade ? grade.label : params.value}
@@ -238,7 +248,7 @@ export default function StudentsPage() {
           />
         );
       },
-    },    
+    },
     {
       field: 'email',
       headerName: 'Email',
@@ -252,7 +262,6 @@ export default function StudentsPage() {
       renderCell: (params) => 
         params.value ? format(new Date(params.value), 'MM/dd/yyyy') : '-',
     },
-
     {
       field: 'is_active',
       headerName: 'Status',
@@ -339,13 +348,13 @@ export default function StudentsPage() {
           </Typography>
         ) : (
           <List dense>
-            {enrollments.map((enrollment) => (
+            {enrollments.map((enrollment: any) => (
               <ListItem key={enrollment.id}>
                 <SchoolIcon sx={{ mr: 2, color: 'primary.main' }} />
                 <ListItemText
                   primary={
                     <>
-                      {enrollment.classroom_name || 'Unknown Class'}
+                      Classroom ID: {enrollment.classroom_id}
                       {enrollment.grade_level && (
                         <Chip 
                           label={`Grade ${enrollment.grade_level}`} 
