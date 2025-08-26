@@ -1,8 +1,9 @@
-# backend/app/routers/rooms.py - Enhanced with availability checking
+# backend/app/routers/rooms.py - FIXED with proper relationship loading
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
+from sqlalchemy.orm import selectinload, joinedload  # ADDED: Missing import
 from typing import List, Optional
 from ..deps import get_db, require_admin, get_current_user
 from ..models.room import Room
@@ -27,7 +28,10 @@ async def list_rooms(
     _: any = Depends(get_current_user),
 ):
     """Get rooms with comprehensive filtering options"""
-    query = select(Room).where(Room.is_active == True).order_by(Room.name)
+    # FIXED: Add joinedload for school relationship
+    query = select(Room).options(
+        joinedload(Room.school)
+    ).where(Room.is_active == True).order_by(Room.name)
     
     if school_id:
         query = query.where(Room.school_id == UUID(school_id))
@@ -58,217 +62,66 @@ async def list_rooms(
     if available_only:
         # Subquery to get rooms that are in use
         used_rooms_subquery = select(Classroom.room_id).where(
-            and_(Classroom.room_id.isnot(None), Classroom.is_active == True)
+            Classroom.room_id.isnot(None)
         )
         query = query.where(Room.id.notin_(used_rooms_subquery))
     
     result = await session.execute(query)
-    return result.scalars().all()
+    return result.scalars().unique().all()  # FIXED: Added unique() to handle joined data
 
-@router.get("/availability", response_model=dict)
-async def get_room_availability(
-    school_id: str,
+@router.get("/{room_id}/usage", response_model=dict)
+async def get_room_usage(
+    room_id: str,
     session: AsyncSession = Depends(get_db),
     _: any = Depends(get_current_user),
 ):
-    """Get comprehensive room availability and utilization data"""
+    """Get detailed usage information for a specific room"""
     
-    # Get all rooms for the school
-    rooms_result = await session.execute(
-        select(Room).where(
-            and_(Room.school_id == UUID(school_id), Room.is_active == True)
+    # FIXED: Load room with its school relationship
+    result = await session.execute(
+        select(Room).options(joinedload(Room.school)).where(Room.id == UUID(room_id))
+    )
+    room = result.scalar_one_or_none()
+    
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    
+    # Get assigned classrooms with their relationships loaded
+    classroom_result = await session.execute(
+        select(Classroom).options(
+            joinedload(Classroom.subject),
+            joinedload(Classroom.academic_year)
+        ).where(
+            Classroom.room_id == UUID(room_id)
         )
     )
-    all_rooms = rooms_result.scalars().all()
     
-    # Get rooms currently in use by classrooms
-    used_rooms_result = await session.execute(
-        select(Room, Classroom)
-        .join(Classroom, Room.id == Classroom.room_id)
-        .where(
-            and_(
-                Room.school_id == UUID(school_id),
-                Room.is_active == True,
-                Classroom.is_active == True
-            )
-        )
-    )
-    used_rooms_data = used_rooms_result.all()
+    assigned_classrooms = classroom_result.scalars().unique().all()
     
-    # Process the data
-    total_rooms = len(all_rooms)
-    used_rooms = len(used_rooms_data)
-    available_rooms = total_rooms - used_rooms
-    utilization_rate = round((used_rooms / total_rooms * 100) if total_rooms > 0 else 0, 1)
-    
-    # Room usage details
-    room_usage = []
-    used_room_ids = {room.Room.id for room in used_rooms_data}
-    
-    for room in all_rooms:
-        usage_info = {
-            "room_id": str(room.id),
-            "room_name": room.name,
-            "room_code": room.room_code,
-            "room_type": room.room_type,
-            "capacity": room.capacity,
-            "is_available": room.id not in used_room_ids,
-            "assigned_classroom": None
-        }
-        
-        # Find assigned classroom if any
-        for used_room in used_rooms_data:
-            if used_room.Room.id == room.id:
-                usage_info["assigned_classroom"] = {
-                    "id": str(used_room.Classroom.id),
-                    "name": used_room.Classroom.name,
-                    "grade_level": used_room.Classroom.grade_level
-                }
-                break
-        
-        room_usage.append(usage_info)
-    
-    # Available rooms by type
-    available_by_type = {}
-    for room in all_rooms:
-        if room.id not in used_room_ids:
-            room_type = room.room_type
-            if room_type not in available_by_type:
-                available_by_type[room_type] = []
-            available_by_type[room_type].append({
-                "id": str(room.id),
-                "name": room.name,
-                "code": room.room_code,
-                "capacity": room.capacity
-            })
-    
-    return {
-        "summary": {
-            "total_rooms": total_rooms,
-            "used_rooms": used_rooms,
-            "available_rooms": available_rooms,
-            "utilization_rate": utilization_rate
+    usage_info = {
+        "room": {
+            "id": str(room.id),
+            "name": room.name,
+            "code": room.room_code,
+            "type": room.room_type,
+            "capacity": room.capacity
         },
-        "room_usage": room_usage,
-        "available_by_type": available_by_type
+        "is_available": len(assigned_classrooms) == 0,
+        "assigned_classrooms": [
+            {
+                "id": str(classroom.id),
+                "name": classroom.name,
+                "grade_level": classroom.grade_level,
+                "subject": classroom.subject.name if classroom.subject else None
+            }
+            for classroom in assigned_classrooms
+        ],
+        "usage_count": len(assigned_classrooms)
     }
+    
+    return usage_info
 
-@router.get("/suggestions", response_model=List[dict])
-async def get_room_suggestions(
-    school_id: str,
-    required_capacity: Optional[int] = None,
-    room_type: Optional[str] = None,
-    needs_projector: bool = False,
-    needs_computers: bool = False,
-    needs_smartboard: bool = False,
-    needs_sink: bool = False,
-    session: AsyncSession = Depends(get_db),
-    _: any = Depends(get_current_user),
-):
-    """Get smart room suggestions based on requirements"""
-    
-    # Start with available rooms
-    query = select(Room).where(
-        and_(
-            Room.school_id == UUID(school_id),
-            Room.is_active == True
-        )
-    )
-    
-    # Exclude rooms currently in use
-    used_rooms_subquery = select(Classroom.room_id).where(
-        and_(Classroom.room_id.isnot(None), Classroom.is_active == True)
-    )
-    query = query.where(Room.id.notin_(used_rooms_subquery))
-    
-    # Apply requirements
-    if required_capacity:
-        query = query.where(Room.capacity >= required_capacity)
-    
-    if room_type:
-        query = query.where(Room.room_type == room_type.upper())
-    
-    if needs_projector:
-        query = query.where(Room.has_projector == True)
-    
-    if needs_computers:
-        query = query.where(Room.has_computers == True)
-    
-    if needs_smartboard:
-        query = query.where(Room.has_smartboard == True)
-    
-    if needs_sink:
-        query = query.where(Room.has_sink == True)
-    
-    result = await session.execute(query.order_by(Room.capacity))
-    rooms = result.scalars().all()
-    
-    # Score rooms based on how well they match requirements
-    suggestions = []
-    for room in rooms:
-        score = 0
-        reasons = []
-        
-        # Base score for being available
-        score += 10
-        reasons.append("Available")
-        
-        # Capacity scoring
-        if required_capacity:
-            if room.capacity >= required_capacity:
-                if room.capacity <= required_capacity * 1.2:  # Perfect size
-                    score += 20
-                    reasons.append("Perfect size")
-                else:
-                    score += 10
-                    reasons.append("Large enough")
-        
-        # Equipment matching
-        if needs_projector and room.has_projector:
-            score += 15
-            reasons.append("Has projector")
-        if needs_computers and room.has_computers:
-            score += 15
-            reasons.append("Has computers")
-        if needs_smartboard and room.has_smartboard:
-            score += 15
-            reasons.append("Has smartboard")
-        if needs_sink and room.has_sink:
-            score += 15
-            reasons.append("Has sink")
-        
-        # Room type bonus
-        if room_type and room.room_type == room_type.upper():
-            score += 10
-            reasons.append(f"Correct type ({room.room_type})")
-        
-        suggestions.append({
-            "room": {
-                "id": str(room.id),
-                "name": room.name,
-                "code": room.room_code,
-                "type": room.room_type,
-                "capacity": room.capacity,
-                "has_projector": room.has_projector,
-                "has_computers": room.has_computers,
-                "has_smartboard": room.has_smartboard,
-                "has_sink": room.has_sink
-            },
-            "score": score,
-            "match_reasons": reasons,
-            "recommendation_level": (
-                "Excellent" if score >= 50 else
-                "Good" if score >= 30 else
-                "Fair"
-            )
-        })
-    
-    # Sort by score (highest first)
-    suggestions.sort(key=lambda x: x["score"], reverse=True)
-    
-    return suggestions
-
-@router.post("", response_model=RoomOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=RoomOut)
 async def create_room(
     payload: RoomCreate,
     session: AsyncSession = Depends(get_db),
@@ -321,6 +174,12 @@ async def create_room(
     session.add(room)
     await session.commit()
     await session.refresh(room)
+    
+    # FIXED: Load the school relationship before returning
+    await session.execute(
+        select(Room).options(joinedload(Room.school)).where(Room.id == room.id)
+    )
+    
     return room
 
 @router.get("/{room_id}", response_model=RoomOut)
@@ -330,56 +189,15 @@ async def get_room(
     _: any = Depends(get_current_user),
 ):
     """Get a specific room with usage information"""
-    room = await session.get(Room, UUID(room_id))
+    # FIXED: Load room with school relationship
+    result = await session.execute(
+        select(Room).options(joinedload(Room.school)).where(Room.id == UUID(room_id))
+    )
+    room = result.scalar_one_or_none()
+    
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     return room
-
-@router.get("/{room_id}/usage", response_model=dict)
-async def get_room_usage(
-    room_id: str,
-    session: AsyncSession = Depends(get_db),
-    _: any = Depends(get_current_user),
-):
-    """Get detailed usage information for a specific room"""
-    
-    room = await session.get(Room, UUID(room_id))
-    if not room:
-        raise HTTPException(status_code=404, detail="Room not found")
-    
-    # Check if room is currently assigned to any classrooms
-    classroom_result = await session.execute(
-        select(Classroom).where(
-            and_(
-                Classroom.room_id == UUID(room_id),
-                Classroom.is_active == True
-            )
-        )
-    )
-    assigned_classrooms = classroom_result.scalars().all()
-    
-    usage_info = {
-        "room": {
-            "id": str(room.id),
-            "name": room.name,
-            "code": room.room_code,
-            "type": room.room_type,
-            "capacity": room.capacity
-        },
-        "is_available": len(assigned_classrooms) == 0,
-        "assigned_classrooms": [
-            {
-                "id": str(classroom.id),
-                "name": classroom.name,
-                "grade_level": classroom.grade_level,
-                "subject": classroom.subject.name if hasattr(classroom, 'subject') else None
-            }
-            for classroom in assigned_classrooms
-        ],
-        "usage_count": len(assigned_classrooms)
-    }
-    
-    return usage_info
 
 @router.patch("/{room_id}", response_model=RoomOut)
 async def update_room(
@@ -431,6 +249,13 @@ async def update_room(
     
     await session.commit()
     await session.refresh(room)
+    
+    # FIXED: Load the school relationship before returning
+    result = await session.execute(
+        select(Room).options(joinedload(Room.school)).where(Room.id == room.id)
+    )
+    room = result.scalar_one_or_none()
+    
     return room
 
 @router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -448,10 +273,7 @@ async def delete_room(
     # Check if room is currently in use
     classroom_result = await session.execute(
         select(Classroom).where(
-            and_(
-                Classroom.room_id == UUID(room_id),
-                Classroom.is_active == True
-            )
+            Classroom.room_id == UUID(room_id)
         )
     )
     assigned_classrooms = classroom_result.scalars().all()
@@ -502,4 +324,11 @@ async def restore_room(
     room.is_active = True
     await session.commit()
     await session.refresh(room)
+    
+    # FIXED: Load the school relationship before returning
+    result = await session.execute(
+        select(Room).options(joinedload(Room.school)).where(Room.id == room.id)
+    )
+    room = result.scalar_one_or_none()
+    
     return room

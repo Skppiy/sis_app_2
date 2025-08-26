@@ -98,6 +98,7 @@ const indexRoute = new Route({
   },
 });
 
+
 // Build the route tree
 export const routeTree = rootRoute.addChildren([
   indexRoute,
