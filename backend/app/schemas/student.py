@@ -31,7 +31,7 @@ class StudentUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 class StudentOut(BaseModel):
-    """Basic student output"""
+    """Basic student output with computed enrollment information"""
     id: UUID
     school_id: UUID
     first_name: str
@@ -40,9 +40,12 @@ class StudentOut(BaseModel):
     date_of_birth: Optional[date] = None
     student_id: Optional[str] = None
     entry_date: Optional[date] = None
-    entry_grade_level: str  # Historical: grade when enrolled
-    current_grade_level: str  # Current: grade now
+    entry_grade_level: str
+    current_grade_level: str
     is_active: bool = True
+    
+    # ADDED: Computed field for enrollment status display
+    enrollment_count: Optional[int] = 0
 
     class Config:
         orm_mode = True

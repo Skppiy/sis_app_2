@@ -22,9 +22,9 @@ export const StudentSchema = z.object({
 export const StudentCreateSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
   last_name: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email").nullable().optional(),
+  email: z.string().email("Invalid email").nullable().optional(), // Auto-generated on frontend
   date_of_birth: z.string().nullable().optional(),
-  student_id: z.string().nullable().optional(),
+  student_id: z.string().nullable().optional(), // Auto-generated on backend
   entry_date: z.string().nullable().optional(),
   entry_grade_level: z.string().min(1, "Grade level is required"),
   // Note: current_grade_level will be set to entry_grade_level on backend

@@ -6,10 +6,11 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func, case
 from sqlalchemy.orm import joinedload, selectinload
 from typing import List, Optional
 from uuid import UUID
+from datetime import date
 
 from ..deps import get_db, require_admin, get_current_user
 from ..models.student import Student
@@ -17,7 +18,8 @@ from ..models.student_academic_record import StudentAcademicRecord
 from ..models.academic_year import AcademicYear
 from ..schemas.student import StudentCreate, StudentOut, StudentUpdate, StudentWithDetails
 from ..models.enrollment import Enrollment
-from ..models.classroom import Classroom  
+from ..models.classroom import Classroom
+from ..models.classroom_teacher_assignment import ClassroomTeacherAssignment
 from ..schemas.enrollment import EnrollmentOut
 from ..models.school import School
 
@@ -76,70 +78,135 @@ async def generate_next_student_id(session: AsyncSession, school_id: UUID) -> st
     next_num = max_num + 1
     return f"{prefix}{str(next_num).zfill(pad)}"
 
-@router.get("", response_model=List[StudentOut], operation_id="list_students")
+@router.get("", response_model=List[StudentOut], operation_id="list_students")  
 async def list_students(
     school_id: Optional[UUID] = Query(None),
     session: AsyncSession = Depends(get_db),
     _: object = Depends(require_admin),
 ):
+    """Enhanced to include enrollment count for frontend display"""
     try:
-        stmt = select(Student)
+        # Build query with enrollment count aggregation
+        # This follows PostgreSQL best practices for computed fields
+        query = (
+            select(
+                Student,
+                func.count(
+                    case(
+                        (and_(Enrollment.is_active == True, Enrollment.enrollment_status == 'ACTIVE'), 1),
+                        else_=None
+                    )
+                ).label("active_enrollment_count")
+            )
+            .outerjoin(Enrollment, Student.id == Enrollment.student_id)
+            .group_by(Student.id)
+            .order_by(Student.last_name, Student.first_name)
+        )
+        
+        # Apply school filter if provided
         if school_id:
-            stmt = stmt.where(Student.school_id == school_id)
-        result = await session.execute(stmt)
-        return result.scalars().all()
+            query = query.where(Student.school_id == school_id)
+        
+        # Execute query
+        result = await session.execute(query)
+        student_enrollment_data = result.all()
+        
+        # Convert to enhanced StudentOut with computed enrollment_count
+        students_with_enrollment = []
+        for student_obj, enrollment_count in student_enrollment_data:
+            # Create student dict with all StudentOut fields
+            student_dict = {
+                "id": student_obj.id,
+                "school_id": student_obj.school_id,
+                "first_name": student_obj.first_name,
+                "last_name": student_obj.last_name,
+                "email": student_obj.email,
+                "date_of_birth": student_obj.date_of_birth,
+                "student_id": student_obj.student_id,
+                "entry_date": student_obj.entry_date,
+                "entry_grade_level": student_obj.entry_grade_level,
+                "current_grade_level": student_obj.current_grade_level,
+                "is_active": student_obj.is_active,
+                # Add computed field for frontend
+                "enrollment_count": enrollment_count or 0
+            }
+            students_with_enrollment.append(student_dict)
+        
+        return students_with_enrollment
+        
     except Exception:
         logging.getLogger("uvicorn.error").exception("Failed to fetch students")
         raise HTTPException(status_code=500, detail="Failed to fetch students")
 
-@router.get("/next-id", tags=["students"])
-async def next_student_id(
-    school_id: UUID = Query(...),
+@router.get("/", response_model=List[StudentWithDetails])  # CHANGED: Use StudentWithDetails
+async def get_students(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, le=1000),
+    grade_level: Optional[str] = Query(None),
+    is_active: Optional[bool] = Query(None),
     session: AsyncSession = Depends(get_db),
-    _: object = Depends(require_admin),
+    current_user: any = Depends(get_current_user),
 ):
-    sid = await generate_next_student_id(session, school_id)
-    return {"student_id": sid}
-
-@router.get("/{student_id}", response_model=StudentWithDetails)
-async def get_student(
-    student_id: UUID,
-    session: AsyncSession = Depends(get_db),
-    _: any = Depends(get_current_user),
-):
-    """Get a specific student by ID"""
+    """
+    Get students with enrollment counts - Enhanced for better UX
+    Returns StudentWithDetails including enrollment_count for "Enrolled" column
+    """
     try:
-        # Load student with relationships like your other routers
-        query = select(Student).options(
-            selectinload(Student.academic_records).joinedload(StudentAcademicRecord.academic_year),
-            selectinload(Student.special_needs),
-            selectinload(Student.parent_relationships)
-        ).where(Student.id == student_id)
+        # Build base query with enrollment count aggregation
+        query = (
+            select(
+                Student,
+                func.coalesce(
+                    func.count(case((Enrollment.is_active == True, 1))), 0
+                ).label("enrollment_count")
+            )
+            .outerjoin(Enrollment, Student.id == Enrollment.student_id)
+            .group_by(Student.id)
+            .order_by(Student.last_name, Student.first_name)
+        )
         
+        # Apply filters
+        if grade_level:
+            query = query.where(Student.current_grade_level == grade_level.upper())
+        
+        if is_active is not None:
+            query = query.where(Student.is_active == is_active)
+        
+        # Apply pagination
+        query = query.offset(skip).limit(limit)
+        
+        # Execute query
         result = await session.execute(query)
-        student = result.scalar_one_or_none()
+        student_enrollment_data = result.all()
         
-        if not student:
-            raise HTTPException(status_code=404, detail="Student not found")
+        # Transform to StudentWithDetails format
+        students_with_details = []
+        for student_obj, enrollment_count in student_enrollment_data:
+            student_dict = {
+                # Basic student fields
+                "id": student_obj.id,
+                "school_id": student_obj.school_id,
+                "first_name": student_obj.first_name,
+                "last_name": student_obj.last_name,
+                "email": student_obj.email,
+                "date_of_birth": student_obj.date_of_birth,
+                "student_id": student_obj.student_id,
+                "entry_date": student_obj.entry_date,
+                "entry_grade_level": student_obj.entry_grade_level,
+                "current_grade_level": student_obj.current_grade_level,
+                "is_active": student_obj.is_active,
+                # Enhanced fields
+                "enrollment_count": enrollment_count,
+                "has_special_needs": False,  # TODO: Add special needs count if needed
+                "parent_count": 0,  # TODO: Add parent count if needed
+            }
+            students_with_details.append(StudentWithDetails(**student_dict))
         
-        # Set current grade
-        current_record = None
-        for record in student.academic_records:
-            if (record.is_active and 
-                record.academic_year and 
-                record.academic_year.is_active):
-                current_record = record
-                break
+        return students_with_details
         
-        student.current_grade = current_record.grade_level if current_record else student.entry_grade_level
-        
-        return student
-        
-    except HTTPException:
-        raise
     except Exception as e:
-        print(f"❌ ERROR in get_student: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        print(f"❌ ERROR in get_students: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get students: {str(e)}")
 
 # UPDATE: create_student function
 @router.post("", response_model=StudentOut, status_code=status.HTTP_201_CREATED)
@@ -167,13 +234,17 @@ async def create_student(
         
         school_id = user_role.school_id
         
-        # Check for duplicate student_id if provided
-        if payload.student_id:
+        # Auto-generate student_id if not provided
+        student_id = payload.student_id
+        if not student_id:
+            student_id = await generate_next_student_id(session, school_id)
+        else:
+            # Check for duplicate student_id if provided
             existing = await session.execute(
                 select(Student).where(
                     and_(
                         Student.school_id == school_id,
-                        Student.student_id == payload.student_id
+                        Student.student_id == student_id
                     )
                 )
             )
@@ -188,7 +259,7 @@ async def create_student(
             last_name=payload.last_name,
             email=payload.email,
             date_of_birth=payload.date_of_birth,
-            student_id=payload.student_id,
+            student_id=student_id,  # Use auto-generated or provided ID
             entry_date=payload.entry_date or date.today(),
             entry_grade_level=payload.entry_grade_level,
             # IMPORTANT: Set current grade to entry grade on creation
@@ -479,3 +550,17 @@ async def get_student_enrollments(
     except Exception as e:
         logging.error(f"Failed to get enrollments: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get enrollments: {str(e)}")
+
+@router.get("/next-id")
+async def get_next_student_id(
+    school_id: UUID = Query(..., description="School ID"),
+    session: AsyncSession = Depends(get_db),
+    _: any = Depends(get_current_user),
+):
+    """Generate next available student ID for the school"""
+    try:
+        next_id = await generate_next_student_id(session, school_id)
+        return {"student_id": next_id}
+    except Exception as e:
+        logging.error(f"Failed to generate student ID: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to generate student ID")
