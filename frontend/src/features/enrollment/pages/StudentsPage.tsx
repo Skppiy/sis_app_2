@@ -188,6 +188,7 @@ export default function StudentsPage() {
 
   // DataGrid columns
   // DataGrid columns - FIXED valueGetter syntax
+  // DataGrid columns - FIXED valueGetter syntax + Added Enrolled column
   const columns: GridColDef[] = [
     {
       field: 'expand',
@@ -205,14 +206,13 @@ export default function StudentsPage() {
     {
       field: 'student_id',
       headerName: 'Student ID',
-      width: 120,
+      width: 100,
       renderCell: (params) => params.value || '-',
     },
     {
       field: 'name',
       headerName: 'Name',
-      width: 200,
-      // FIX: Use renderCell instead of valueGetter for computed fields
+      width: 180,
       renderCell: (params: GridRenderCellParams) => {
         const firstName = params.row?.first_name || '';
         const lastName = params.row?.last_name || '';
@@ -220,31 +220,27 @@ export default function StudentsPage() {
       },
     },
     {
-      field: 'entry_grade_level',
-      headerName: 'Entry Grade',
-      width: 100,
+      field: 'current_grade_level',
+      headerName: 'Grade',
+      width: 80,
       renderCell: (params) => {
         const grade = GRADE_LEVELS.find(g => g.value === params.value);
-        return (
-          <Tooltip title="Grade when enrolled">
-            <span style={{ opacity: 0.7 }}>{grade ? grade.label : params.value}</span>
-          </Tooltip>
-        );
+        return grade ? grade.label : params.value;
       },
     },
     {
-      field: 'current_grade_level',
-      headerName: 'Current Grade',
-      width: 110,
-      renderCell: (params) => {
-        const grade = GRADE_LEVELS.find(g => g.value === params.value);
-        const isPromoted = params.value !== params.row?.entry_grade_level;
+      field: 'enrolled',
+      headerName: 'Enrolled',
+      width: 100,
+      renderCell: (params: GridRenderCellParams) => {
+        // For now, just show if expanded row has enrollments
+        // Later we can fetch this data more efficiently
         return (
           <Chip
-            label={grade ? grade.label : params.value}
-            color={isPromoted ? 'primary' : 'default'}
+            label="Check"
             size="small"
-            variant={isPromoted ? 'filled' : 'outlined'}
+            color="default"
+            onClick={() => toggleRowExpansion(params.row.id)}
           />
         );
       },
@@ -252,7 +248,7 @@ export default function StudentsPage() {
     {
       field: 'email',
       headerName: 'Email',
-      width: 200,
+      width: 180,
       renderCell: (params) => params.value || '-',
     },
     {
@@ -265,7 +261,7 @@ export default function StudentsPage() {
     {
       field: 'is_active',
       headerName: 'Status',
-      width: 100,
+      width: 90,
       renderCell: (params) => (
         <Chip
           label={params.value ? 'Active' : 'Inactive'}
@@ -452,16 +448,12 @@ export default function StudentsPage() {
       </Paper>
 
       {/* Create Dialog */}
-      <Dialog open={enrollDialogOpen} onClose={() => setEnrollDialogOpen(false)} maxWidth="sm" fullWidth>
-  <form onSubmit={enrollForm.handleSubmit(handleEnroll)}>
-    <DialogTitle>
-      Enroll Student: {selectedStudent?.first_name} {selectedStudent?.last_name}
-      <Typography variant="caption" display="block" color="text.secondary">
-        Current Grade: {selectedStudent?.current_grade_level}
-      </Typography>
-    </DialogTitle>
-    <DialogContent>
-      <Grid container spacing={2} sx={{ mt: 1 }}>
+      {/* Create Student Dialog - FIXED: Separate from enrollment */}
+      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
+        <form onSubmit={handleSubmit(handleCreate)}>
+          <DialogTitle>Add New Student</DialogTitle>
+          <DialogContent>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={6}>
                 <Controller
                   name="first_name"
@@ -472,6 +464,7 @@ export default function StudentsPage() {
                       {...field}
                       label="First Name"
                       fullWidth
+                      required
                       error={!!errors.first_name}
                       helperText={errors.first_name?.message}
                     />
@@ -488,8 +481,47 @@ export default function StudentsPage() {
                       {...field}
                       label="Last Name"
                       fullWidth
+                      required
                       error={!!errors.last_name}
                       helperText={errors.last_name?.message}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <Controller
+                  name="entry_grade_level"
+                  control={control}
+                  defaultValue=""
+                  render={({ field }) => (
+                    <FormControl fullWidth required error={!!errors.entry_grade_level}>
+                      <InputLabel>Grade Level</InputLabel>
+                      <Select {...field} label="Grade Level">
+                        {GRADE_LEVELS.map((grade) => (
+                          <MenuItem key={grade.value} value={grade.value}>
+                            {grade.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                      {errors.entry_grade_level && (
+                        <FormHelperText>{errors.entry_grade_level.message}</FormHelperText>
+                      )}
+                    </FormControl>
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <Controller
+                  name="student_id"
+                  control={control}
+                  defaultValue=""
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="Student ID"
+                      fullWidth
+                      helperText="Leave blank to auto-generate"
+                      error={!!errors.student_id}
                     />
                   )}
                 />
@@ -508,41 +540,6 @@ export default function StudentsPage() {
                       error={!!errors.email}
                       helperText={errors.email?.message}
                     />
-                  )}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <Controller
-                  name="student_id"
-                  control={control}
-                  defaultValue=""
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Student ID"
-                      fullWidth
-                      error={!!errors.student_id}
-                      helperText={errors.student_id?.message}
-                    />
-                  )}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <Controller
-                  name="entry_grade_level"
-                  control={control}
-                  defaultValue=""
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.entry_grade_level}>
-                      <InputLabel>Grade Level</InputLabel>
-                      <Select {...field} label="Grade Level">
-                        {GRADE_LEVELS.map((grade) => (
-                          <MenuItem key={grade.value} value={grade.value}>
-                            {grade.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
                   )}
                 />
               </Grid>
@@ -582,214 +579,19 @@ export default function StudentsPage() {
                   )}
                 />
               </Grid>
-              <Grid item xs={12}>
-                <Controller
-                  name="classroom_id"
-                  control={enrollForm.control}
-                  rules={{ required: 'Please select a classroom' }}
-                  render={({ field, fieldState }) => (
-                    <FormControl fullWidth error={!!fieldState.error}>
-                      <InputLabel>Classroom</InputLabel>
-                      <Select {...field} label="Classroom">
-                        {availableClassrooms.map((classroom) => (
-                          <MenuItem key={classroom.id} value={classroom.id}>
-                            {classroom.name} - {classroom.subject?.name || 'No Subject'} 
-                            {classroom.room && ` (${classroom.room.name})`}
-                            {classroom.grade_level && ` - Grade ${classroom.grade_level}`}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {fieldState.error && (
-                        <Typography variant="caption" color="error">
-                          {fieldState.error.message}
-                        </Typography>
-                      )}
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-        
-              <Grid item xs={6}>
-                <Controller
-                  name="grade_level"
-                  control={enrollForm.control}
-                  defaultValue={selectedStudent?.current_grade_level || ''}
-                  render={({ field }) => (
-                    <FormControl fullWidth>
-                      <InputLabel>Grade Level for Enrollment</InputLabel>
-                      <Select {...field} label="Grade Level for Enrollment">
-                        {GRADE_LEVELS.map((grade) => (
-                          <MenuItem key={grade.value} value={grade.value}>
-                            {grade.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      <FormHelperText>
-                        Usually matches current grade ({selectedStudent?.current_grade_level})
-                      </FormHelperText>
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-        
-              <Grid item xs={6}>
-                <Controller
-                  name="enrollment_date"
-                  control={enrollForm.control}
-                  defaultValue={format(new Date(), 'yyyy-MM-dd')}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Enrollment Date"
-                      type="date"
-                      fullWidth
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  )}
-                />
-              </Grid>
             </Grid>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
             <Button type="submit" variant="contained" disabled={createMutation.isPending}>
-              {createMutation.isPending ? 'Creating...' : 'Create'}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
-
-      {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
-        <form onSubmit={handleSubmit(handleUpdate)}>
-          <DialogTitle>Edit Student</DialogTitle>
-          <DialogContent>
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={6}>
-                <Controller
-                  name="first_name"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="First Name"
-                      fullWidth
-                      error={!!errors.first_name}
-                      helperText={errors.first_name?.message}
-                    />
-                  )}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <Controller
-                  name="last_name"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Last Name"
-                      fullWidth
-                      error={!!errors.last_name}
-                      helperText={errors.last_name?.message}
-                    />
-                  )}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <Controller
-                  name="email"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Email"
-                      type="email"
-                      fullWidth
-                      error={!!errors.email}
-                      helperText={errors.email?.message}
-                    />
-                  )}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <Controller
-                  name="student_id"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Student ID"
-                      fullWidth
-                      error={!!errors.student_id}
-                      helperText={errors.student_id?.message}
-                    />
-                  )}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <Controller
-                  name="entry_grade_level"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.entry_grade_level}>
-                      <InputLabel>Grade Level</InputLabel>
-                      <Select {...field} label="Grade Level">
-                        {GRADE_LEVELS.map((grade) => (
-                          <MenuItem key={grade.value} value={grade.value}>
-                            {grade.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <Controller
-                  name="date_of_birth"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Date of Birth"
-                      type="date"
-                      fullWidth
-                      InputLabelProps={{ shrink: true }}
-                      error={!!errors.date_of_birth}
-                      helperText={errors.date_of_birth?.message}
-                    />
-                  )}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <Controller
-                  name="is_active"
-                  control={control}
-                  defaultValue={true}
-                  render={({ field }) => (
-                    <FormControl fullWidth>
-                      <InputLabel>Status</InputLabel>
-                      <Select {...field} label="Status">
-                        <MenuItem value={true}>Active</MenuItem>
-                        <MenuItem value={false}>Inactive</MenuItem>
-                      </Select>
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? 'Updating...' : 'Update'}
+              {createMutation.isPending ? 'Creating...' : 'Create Student'}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
 
       {/* Enrollment Dialog */}
-      <Dialog open={enrollDialogOpen} onClose={() => setEnrollDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
         <form onSubmit={enrollForm.handleSubmit(handleEnroll)}>
           <DialogTitle>
             Enroll Student: {selectedStudent?.first_name} {selectedStudent?.last_name}

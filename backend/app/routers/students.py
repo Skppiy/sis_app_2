@@ -440,35 +440,42 @@ async def debug_student_info(
 
 @router.get("/{student_id}/enrollments", response_model=List[EnrollmentOut])
 async def get_student_enrollments(
-    student_id: UUID,
+    student_id: str,  # Changed to string
     academic_year_id: Optional[str] = Query(None, description="Filter by academic year"),
     active_only: bool = Query(True, description="Only return active enrollments"),
     session: AsyncSession = Depends(get_db),
     _: any = Depends(get_current_user),
 ):
-    """Get all enrollments for a specific student - Frontend expects this exact endpoint"""
+    """Get all enrollments for a specific student with full classroom details"""
     try:
         # Validate student exists
-        student = await session.get(Student, student_id)
+        student = await session.get(Student, UUID(student_id))
         if not student:
             raise HTTPException(status_code=404, detail="Student not found")
         
-        query = select(Enrollment).where(Enrollment.student_id == student_id)
+        # Build query with FULL relationship loading
+        query = select(Enrollment).options(
+            selectinload(Enrollment.classroom).selectinload(Classroom.subject),
+            selectinload(Enrollment.classroom).selectinload(Classroom.room),
+            selectinload(Enrollment.classroom).selectinload(Classroom.teacher_assignments).selectinload(ClassroomTeacherAssignment.teacher),
+            selectinload(Enrollment.academic_year)
+        ).where(Enrollment.student_id == UUID(student_id))
         
         if academic_year_id:
-            query = query.join(Classroom).where(Classroom.academic_year_id == academic_year_id)
+            query = query.where(Enrollment.academic_year_id == UUID(academic_year_id))
         
         if active_only:
             query = query.where(Enrollment.is_active == True)
         
-        query = query.order_by(Enrollment.created_at.desc())
+        query = query.order_by(Enrollment.enrollment_date.desc().nullsfirst())
         
         result = await session.execute(query)
-        enrollments = result.scalars().all()
+        enrollments = result.scalars().unique().all()
         
         return enrollments
         
     except HTTPException:
         raise
     except Exception as e:
+        logging.error(f"Failed to get enrollments: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get enrollments: {str(e)}")
