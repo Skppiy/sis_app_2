@@ -4,6 +4,8 @@ import { Outlet, Link } from "@tanstack/react-router";
 import { CssBaseline, ThemeProvider, createTheme, AppBar, Toolbar, Button, Box } from "@mui/material";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/auth/AuthContext";
+// import { SelectedYearProvider } from "@/contexts/SelectedYearContext";
+// import { YearSelector } from "@/components/YearSelector";
 
 const theme = createTheme();
 const qc = new QueryClient();

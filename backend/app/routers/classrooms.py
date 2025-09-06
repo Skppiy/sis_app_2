@@ -20,46 +20,6 @@ from ..schemas.classroom import ClassroomCreate, ClassroomOut, ClassroomWithDeta
 
 router = APIRouter(prefix="/classrooms", tags=["classrooms"])
 
-@router.get("", response_model=List[ClassroomOut])
-async def list_classrooms(
-    academic_year_id: Optional[str] = None,
-    subject_id: Optional[str] = None,
-    teacher_user_id: Optional[str] = None,
-    session: AsyncSession = Depends(get_db),
-    _: any = Depends(get_current_user),
-):
-    """List classrooms with optional filtering - FIXED to load all relationships"""
-    query = select(Classroom).options(
-        joinedload(Classroom.subject),
-        joinedload(Classroom.academic_year),
-        joinedload(Classroom.room),  # FIXED: Load room relationship
-        selectinload(Classroom.teacher_assignments).joinedload(ClassroomTeacherAssignment.teacher)  # FIXED: Load teacher assignments
-    )
-    
-    if academic_year_id:
-        query = query.where(Classroom.academic_year_id == UUID(academic_year_id))
-    
-    if subject_id:
-        query = query.where(Classroom.subject_id == UUID(subject_id))
-    
-    if teacher_user_id:
-        query = query.join(ClassroomTeacherAssignment).where(
-            and_(
-                ClassroomTeacherAssignment.teacher_user_id == UUID(teacher_user_id),
-                ClassroomTeacherAssignment.is_active == True
-            )
-        )
-    
-    result = await session.execute(query)
-    classrooms = result.scalars().all()
-    
-    # Add enrollment count for each classroom
-    for classroom in classrooms:
-        # Get enrollment count (when enrollment model exists)
-        # For now, set to 0 as placeholder
-        classroom.enrollment_count = 0
-    
-    return classrooms
 
 @router.get("", response_model=List[ClassroomOut])
 async def list_classrooms(

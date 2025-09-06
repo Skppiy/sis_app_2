@@ -12,13 +12,18 @@ type Props = {
 };
 
 export default function YearFormDialog({ open, initial, onClose, onSubmit }: Props) {
+  // Helper function to normalize boolean values from database
+  const normalizeBoolean = (value: any): boolean => {
+    return value === true || value === 'true' || value === 't';
+  };
+
   const { register, handleSubmit, formState: { errors }, reset } = useForm<AcademicYearCreate>({
     resolver: zodResolver(AcademicYearCreateSchema),
     defaultValues: {
       name: initial?.name ?? '',
       start_date: initial?.start_date ?? '',
       end_date: initial?.end_date ?? '',
-      is_active: initial?.is_active ?? false,
+      is_active: normalizeBoolean(initial?.is_active),
     },
   });
 
@@ -28,7 +33,7 @@ export default function YearFormDialog({ open, initial, onClose, onSubmit }: Pro
         name: initial?.name ?? '',
         start_date: initial?.start_date ?? '',
         end_date: initial?.end_date ?? '',
-        is_active: initial?.is_active ?? false,
+        is_active: normalizeBoolean(initial?.is_active),
       });
     }
   }, [open, initial, reset]);

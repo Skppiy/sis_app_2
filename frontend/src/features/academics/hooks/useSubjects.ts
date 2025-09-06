@@ -1,25 +1,69 @@
 // src/features/academics/hooks/useSubjects.ts
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { createSubject, deleteSubject, listSubjects, updateSubject } from "../services/subjects";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  listSubjects, 
+  createSubject, 
+  updateSubject, 
+  deleteSubject
+} from '../services/subjects';
+import type { Subject } from '@/schemas/academics';
 
-const qk = { subjects: ["subjects"] as const };
+// Query keys
+export const subjectKeys = {
+  all: ['subjects'] as const,
+  lists: () => [...subjectKeys.all, 'list'] as const,
+  list: (filters?: any) => [...subjectKeys.lists(), filters] as const,
+  details: () => [...subjectKeys.all, 'detail'] as const,
+  detail: (id: string) => [...subjectKeys.details(), id] as const,
+};
 
-export function useSubjects() {
-  const qc = useQueryClient();
-  const list = useQuery({ queryKey: qk.subjects, queryFn: listSubjects, staleTime: 60_000 });
+// Hook to list subjects
+export function useSubjects(filters?: {
+  school_id?: string;
+  is_active?: boolean;
+  grade_band?: string;
+  subject_type?: string;
+}) {
+  return useQuery({
+    queryKey: subjectKeys.list(filters),
+    queryFn: () => listSubjects(filters),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
 
-  const create = useMutation({
+// Hook to create a subject
+export function useCreateSubject() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
     mutationFn: createSubject,
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.subjects }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: subjectKeys.lists() });
+    },
   });
-  const update = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) => updateSubject(id, payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.subjects }),
-  });
-  const remove = useMutation({
-    mutationFn: (id: string) => deleteSubject(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.subjects }),
-  });
+}
 
-  return { list, create, update, remove };
+// Hook to update a subject
+export function useUpdateSubject(id: string) {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (payload: Partial<Subject>) => updateSubject(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: subjectKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: subjectKeys.lists() });
+    },
+  });
+}
+
+// Hook to delete a subject
+export function useDeleteSubject() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: deleteSubject,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: subjectKeys.lists() });
+    },
+  });
 }

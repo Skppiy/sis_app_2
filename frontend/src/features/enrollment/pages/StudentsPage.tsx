@@ -82,16 +82,11 @@ export default function StudentsPage() {
 
   const schoolId = activeSchool?.id;
   
-  // Debug: Log user and school info
-  console.log('Current user:', user);
-  console.log('Active school:', activeSchool);
-  console.log('School ID from activeSchool:', schoolId);
-
   // Queries
   const { data: students = [], isLoading, error } = useStudents({ 
     school_id: schoolId 
   });
-  const { list: { data: classrooms = [] } } = useClassrooms();
+  const { data: classrooms = [] } = useClassrooms();
   const { list: { data: academicYears = [] } } = useYears();
 
   // Mutations
@@ -100,18 +95,23 @@ export default function StudentsPage() {
   const deleteMutation = useDeleteStudent();
   const enrollMutation = useEnrollStudent();
 
-  // Get active academic year
-  const activeYear = academicYears.find(y => y.is_active);
+  // Get active academic year - handle both boolean and string formats
+  const activeYear = academicYears.find(y => 
+    y.is_active === true || y.is_active === 'true' || y.is_active === 't'
+  );
+  
+  // DEBUG: Log to see what's happening
+  console.log('Students Page DEBUG:', {
+    academicYears,
+    activeYear,
+    studentsCount: students.length,
+    classroomsCount: classrooms.length
+  });
 
   // Filter classrooms by active academic year
-  // TEMP: Show all classrooms for debugging
-  const availableClassrooms = classrooms; // classrooms.filter(c => c.academic_year_id === activeYear?.id);
-  
-  // Debug: Log academic years data
-  console.log('Academic Years:', academicYears);
-  console.log('Active Year:', activeYear);
-  console.log('All Classrooms:', classrooms);
-  console.log('Available Classrooms (filtered):', availableClassrooms);
+  const availableClassrooms = classrooms.filter(
+    c => c.academic_year_id === activeYear?.id
+  );
 
   // Form for create/edit
   const {

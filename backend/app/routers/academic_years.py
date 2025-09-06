@@ -98,3 +98,32 @@ async def activate_academic_year(
     await session.commit()
     await session.refresh(academic_year)
     return academic_year
+
+@router.put("/{year_id}", response_model=AcademicYearOut)
+async def update_academic_year(
+    year_id: str,
+    payload: AcademicYearUpdate,
+    session: AsyncSession = Depends(get_db),
+    _: any = Depends(require_admin),
+):
+    """Update an academic year"""
+    from uuid import UUID
+    
+    academic_year = await session.get(AcademicYear, UUID(year_id))
+    if not academic_year:
+        raise HTTPException(status_code=404, detail="Academic year not found")
+    
+    # If setting this year as active, deactivate all others
+    if hasattr(payload, 'is_active') and payload.is_active:
+        await session.execute(
+            update(AcademicYear).values(is_active=False).where(AcademicYear.id != UUID(year_id))
+        )
+    
+    # Update fields
+    update_data = payload.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(academic_year, field, value)
+    
+    await session.commit()
+    await session.refresh(academic_year)
+    return academic_year
