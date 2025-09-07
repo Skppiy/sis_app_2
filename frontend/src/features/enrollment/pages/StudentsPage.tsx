@@ -86,7 +86,11 @@ export default function StudentsPage() {
   const { data: students = [], isLoading, error } = useStudents({ 
     school_id: schoolId 
   });
-  const { data: classrooms = [] } = useClassrooms();
+  // Filter classrooms by active academic year for enrollment
+  const classroomsQuery = useClassrooms(
+    activeYear?.id ? { academic_year_id: activeYear.id } : {}
+  );
+  const { data: classrooms = [] } = classroomsQuery;
   const { list: { data: academicYears = [] } } = useYears();
 
   // Mutations
@@ -108,10 +112,8 @@ export default function StudentsPage() {
     classroomsCount: classrooms.length
   });
 
-  // Filter classrooms by active academic year
-  const availableClassrooms = classrooms.filter(
-    c => c.academic_year_id === activeYear?.id
-  );
+  // Classrooms are already filtered by active academic year in the query above
+  const availableClassrooms = classrooms;
 
   // Form for create/edit
   const {
@@ -356,6 +358,7 @@ export default function StudentsPage() {
   const EnrollmentDetails = ({ student }: { student: Student }) => {
     const { data: enrollments = [], isLoading } = useStudentEnrollments(student.id, {
       active_only: true,
+      academic_year_id: activeYear?.id, // Filter by active academic year
     });
     const withdrawMutation = useWithdrawEnrollment(student.id);
   
@@ -373,6 +376,11 @@ export default function StudentsPage() {
       <Box sx={{ p: 2, bgcolor: 'grey.50' }}>
         <Typography variant="subtitle2" gutterBottom>
           Current Enrollments (Grade {student.current_grade_level})
+          {activeYear && (
+            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+              • {activeYear.name}
+            </Typography>
+          )}
         </Typography>
         {enrollments.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
@@ -431,7 +439,14 @@ export default function StudentsPage() {
     <Box>
       <Paper sx={{ p: 2, mb: 2 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h5">Students</Typography>
+          <Box>
+            <Typography variant="h5">Students</Typography>
+            {activeYear && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Academic Year: {activeYear.name} (Enrollments)
+              </Typography>
+            )}
+          </Box>
           <Button
             variant="contained"
             startIcon={<AddIcon />}

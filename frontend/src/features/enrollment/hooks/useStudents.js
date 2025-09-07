@@ -8,7 +8,7 @@ export const studentKeys = {
     list: (filters) => [...studentKeys.lists(), filters],
     details: () => [...studentKeys.all, 'detail'],
     detail: (id) => [...studentKeys.details(), id],
-    enrollments: (studentId) => [...studentKeys.all, 'enrollments', studentId],
+    enrollments: (studentId, params) => [...studentKeys.all, 'enrollments', studentId, params],
     nextId: (schoolId) => [...studentKeys.all, 'nextId', schoolId],
 };
 // Hook to list students
@@ -62,7 +62,7 @@ export function useDeleteStudent() {
 // Hook to get student enrollments
 export function useStudentEnrollments(studentId, params) {
     return useQuery({
-        queryKey: studentKeys.enrollments(studentId),
+        queryKey: studentKeys.enrollments(studentId, params),
         queryFn: () => getStudentEnrollments(studentId, params),
         enabled: !!studentId,
         staleTime: 5 * 60 * 1000,
@@ -74,9 +74,9 @@ export function useEnrollStudent() {
     return useMutation({
         mutationFn: enrollStudent,
         onSuccess: (_, variables) => {
-            // Invalidate the student's enrollment list
+            // Invalidate all enrollment queries for this student
             queryClient.invalidateQueries({
-                queryKey: studentKeys.enrollments(variables.student_id)
+                queryKey: [...studentKeys.all, 'enrollments', variables.student_id]
             });
             // Also invalidate classroom rosters if needed
             queryClient.invalidateQueries({
@@ -91,8 +91,9 @@ export function useWithdrawEnrollment(studentId) {
     return useMutation({
         mutationFn: withdrawEnrollment,
         onSuccess: () => {
+            // Invalidate all enrollment queries for this student  
             queryClient.invalidateQueries({
-                queryKey: studentKeys.enrollments(studentId)
+                queryKey: [...studentKeys.all, 'enrollments', studentId]
             });
         },
     });

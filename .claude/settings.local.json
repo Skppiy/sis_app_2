@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Read(//c/Users/lehne/OneDrive/Pictures/Screenshots/**)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(cat:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
