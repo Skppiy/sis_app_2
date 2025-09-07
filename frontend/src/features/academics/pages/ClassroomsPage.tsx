@@ -52,8 +52,11 @@ export default function ClassroomsPage() {
   const schoolId = activeSchool?.id;
   
   // Get academic years and find active one
-  const { list: { data: academicYears = [] } } = useYears();
-  const activeYear = academicYears.find((y: any) => y.is_active === true || y.is_active === 'true' || y.is_active === 't');
+  const { data: academicYears = [] } = useYears();
+  const activeYear = academicYears.find(y => {
+    const isActive = y.is_active;
+    return isActive === true || String(isActive) === 'true' || String(isActive) === 't';
+  });
   
   // Queries - filter by active academic year
   const classroomsQuery = useClassrooms(
@@ -63,7 +66,7 @@ export default function ClassroomsPage() {
 
   console.log('Classrooms data:', { classrooms, activeYear, isLoading, error });
   const { data: subjects = [] } = useSubjects();
-  const { list: { data: rooms = [] } } = useRooms();
+  const { data: rooms = [] } = useRooms();
 
   // Mutations
   const createMutation = useCreateClassroom();

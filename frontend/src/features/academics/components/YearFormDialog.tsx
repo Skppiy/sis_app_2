@@ -3,6 +3,17 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Stack, TextF
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AcademicYearCreate, AcademicYearCreateSchema, AcademicYear } from '../schemas/years';
+import { z } from 'zod';
+
+// Form schema that ensures is_active is required boolean
+const YearFormSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  start_date: z.string().min(1, "Start date is required"),
+  end_date: z.string().min(1, "End date is required"),
+  is_active: z.boolean(),
+});
+
+type YearFormData = z.infer<typeof YearFormSchema>;
 
 type Props = {
   open: boolean;
@@ -13,17 +24,17 @@ type Props = {
 
 export default function YearFormDialog({ open, initial, onClose, onSubmit }: Props) {
   // Helper function to normalize boolean values from database
-  const normalizeBoolean = (value: any): boolean => {
+  const normalizeBoolean = (value: unknown): boolean => {
     return value === true || value === 'true' || value === 't';
   };
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<AcademicYearCreate>({
-    resolver: zodResolver(AcademicYearCreateSchema),
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<YearFormData>({
+    resolver: zodResolver(YearFormSchema),
     defaultValues: {
       name: initial?.name ?? '',
       start_date: initial?.start_date ?? '',
       end_date: initial?.end_date ?? '',
-      is_active: normalizeBoolean(initial?.is_active),
+      is_active: normalizeBoolean(initial?.is_active) ?? false,
     },
   });
 
@@ -33,7 +44,7 @@ export default function YearFormDialog({ open, initial, onClose, onSubmit }: Pro
         name: initial?.name ?? '',
         start_date: initial?.start_date ?? '',
         end_date: initial?.end_date ?? '',
-        is_active: normalizeBoolean(initial?.is_active),
+        is_active: normalizeBoolean(initial?.is_active) ?? false,
       });
     }
   }, [open, initial, reset]);
@@ -41,7 +52,17 @@ export default function YearFormDialog({ open, initial, onClose, onSubmit }: Pro
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>{initial?.id ? 'Edit Year' : 'Add Year'}</DialogTitle>
-      <form onSubmit={handleSubmit(async (values) => { await onSubmit(values); onClose(); })}>
+      <form onSubmit={handleSubmit(async (values) => { 
+        // Convert form data to API format
+        const apiData: AcademicYearCreate = {
+          name: values.name,
+          start_date: values.start_date,
+          end_date: values.end_date,
+          is_active: values.is_active,
+        };
+        await onSubmit(apiData); 
+        onClose(); 
+      })}>
         <DialogContent>
           <Stack spacing={2}>
             <TextField label="Name" {...register('name')} error={!!errors.name} helperText={errors.name?.message} />

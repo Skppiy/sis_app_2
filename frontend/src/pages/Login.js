@@ -21,7 +21,8 @@ export default function Login() {
             navigate({ to: '/app/dashboard' });
         }
         catch (err) {
-            setError(err.message || 'Login failed');
+            const errorMessage = err instanceof Error ? err.message : 'Login failed';
+            setError(errorMessage);
         }
     };
     return (_jsx(Box, { sx: { display: 'grid', placeItems: 'center', height: '100vh' }, children: _jsxs(Paper, { sx: { p: 4, width: 420 }, children: [_jsx(Typography, { variant: "h5", sx: { mb: 2 }, children: "Sign in" }), _jsx("form", { onSubmit: onSubmit, children: _jsxs(Stack, { spacing: 2, children: [_jsx(TextField, { label: "Username", value: username, onChange: e => setU(e.target.value), required: true }), _jsx(TextField, { label: "Password", type: "password", value: password, onChange: e => setP(e.target.value), required: true }), error && _jsx(Typography, { color: "error", children: error }), _jsx(Button, { type: "submit", children: "Login" })] }) })] }) }));

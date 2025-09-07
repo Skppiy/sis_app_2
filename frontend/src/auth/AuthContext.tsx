@@ -5,6 +5,13 @@ import { env } from '@/config/env';
 const API_BASE_URL = env.apiBase;
 
 // Types
+interface UserRole {
+  id: string;
+  role: string;
+  school_id: string;
+  is_active: boolean;
+}
+
 interface User {
   id: string;
   email: string;
@@ -14,8 +21,15 @@ interface User {
   last_name?: string;
 }
 
+interface School {
+  id: string;
+  name: string;
+  code: string;
+}
+
 interface AuthContextType {
   user: User | null;
+  activeSchool: School | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -34,6 +48,7 @@ interface AuthProviderProps {
 // Provider Component
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
+  const [activeSchool, setActiveSchool] = useState<School | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -67,14 +82,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Extract school_id from roles (use first active role's school_id)
         let schoolId = '';
         if (result.roles && result.roles.length > 0) {
-          const activeRole = result.roles.find((r: any) => r.is_active) || result.roles[0];
+          const roles = result.roles as UserRole[];
+          const activeRole = roles.find(r => r.is_active) || roles[0];
           schoolId = activeRole.school_id;
         }
 
         // Extract role from roles array (use first active role)
         let userRole: 'admin' | 'teacher' | 'student' = 'student';
         if (result.roles && result.roles.length > 0) {
-          const activeRole = result.roles.find((r: any) => r.is_active) || result.roles[0];
+          const roles = result.roles as UserRole[];
+          const activeRole = roles.find(r => r.is_active) || roles[0];
           // Map backend role to frontend role
           if (activeRole.role.toLowerCase().includes('admin') || 
               activeRole.role.toLowerCase().includes('principal') ||
@@ -96,6 +113,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
 
         setUser(userWithSchool);
+
+        // Fetch and set active school if we have a school_id
+        if (schoolId) {
+          try {
+            const schoolResponse = await fetch(`${API_BASE_URL}/schools/${schoolId}`, {
+              headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (schoolResponse.ok) {
+              const schoolData = await schoolResponse.json();
+              setActiveSchool({
+                id: schoolData.id,
+                name: schoolData.name,
+                code: schoolData.code || schoolData.name.substring(0, 3).toUpperCase()
+              });
+            }
+          } catch (error) {
+            console.error('Error fetching school details:', error);
+            // Set a basic school object with just the ID if fetch fails
+            setActiveSchool({
+              id: schoolId,
+              name: 'School',
+              code: 'SCH'
+            });
+          }
+        }
       } else {
         // Token invalid, clear it
         localStorage.removeItem('token');
@@ -154,6 +200,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
+    setActiveSchool(null);
     window.location.href = '/login';
   };
 
@@ -161,6 +208,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value: AuthContextType = {
     user,
+    activeSchool,
     isAuthenticated,
     isLoading,
     login,
@@ -185,4 +233,4 @@ export function useAuth(): AuthContextType {
 }
 
 // Export types for use in other files
-export type { User, AuthContextType };
+export type { User, School, AuthContextType };

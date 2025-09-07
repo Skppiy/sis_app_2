@@ -101,6 +101,7 @@ export async function getStudentEnrollments(
 export async function enrollStudent(payload: {
   student_id: string;
   classroom_id: string;
+  grade_level: string;
   enrollment_date?: string;
 }): Promise<Enrollment> {
   const data = await apiFetch<unknown>("/enrollments", {

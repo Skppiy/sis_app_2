@@ -33,7 +33,7 @@ const SUBJECT_TYPES = [
 
 export default function SubjectFormDialog({ open, initial, onClose, onSubmit }: Props) {
   // Helper function to normalize boolean values from database
-  const normalizeBoolean = (value: any): boolean => {
+  const normalizeBoolean = (value: unknown): boolean => {
     return value === true || value === 'true' || value === 't';
   };
 

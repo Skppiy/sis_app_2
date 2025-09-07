@@ -1,18 +1,11 @@
 // src/features/academics/hooks/useSubjects.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { listSubjects, createSubject, updateSubject, deleteSubject } from '../services/subjects';
-// Query keys
-export const subjectKeys = {
-    all: ['subjects'],
-    lists: () => [...subjectKeys.all, 'list'],
-    list: (filters) => [...subjectKeys.lists(), filters],
-    details: () => [...subjectKeys.all, 'detail'],
-    detail: (id) => [...subjectKeys.details(), id],
-};
+import { queryKeys } from '@/api/queryKeys';
 // Hook to list subjects
 export function useSubjects(filters) {
     return useQuery({
-        queryKey: subjectKeys.list(filters),
+        queryKey: queryKeys.subjects.list(filters),
         queryFn: () => listSubjects(filters),
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
@@ -23,7 +16,7 @@ export function useCreateSubject() {
     return useMutation({
         mutationFn: createSubject,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: subjectKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.subjects.lists() });
         },
     });
 }
@@ -33,8 +26,8 @@ export function useUpdateSubject(id) {
     return useMutation({
         mutationFn: (payload) => updateSubject(id, payload),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: subjectKeys.detail(id) });
-            queryClient.invalidateQueries({ queryKey: subjectKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.subjects.detail(id) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.subjects.lists() });
         },
     });
 }
@@ -44,7 +37,7 @@ export function useDeleteSubject() {
     return useMutation({
         mutationFn: deleteSubject,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: subjectKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.subjects.lists() });
         },
     });
 }

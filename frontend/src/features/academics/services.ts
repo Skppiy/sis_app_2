@@ -1,5 +1,5 @@
 import { apiFetch } from '@api/requestHelper';
-import { AcademicYear, AcademicYearCreate, AcademicYearUpdate } from '../schemas/years';
+import { AcademicYear, AcademicYearCreate, AcademicYearUpdate } from './schemas/years';
 
 export const YearsAPI = {
   list: () => apiFetch<AcademicYear[]>('/academic-years'),

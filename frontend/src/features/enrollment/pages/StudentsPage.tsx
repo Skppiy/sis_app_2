@@ -17,7 +17,6 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Grid,
   Alert,
   Tooltip,
   Collapse,
@@ -47,6 +46,7 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
+import { z } from 'zod';
 
 import { useAuth } from '@/auth/AuthContext';
 import {
@@ -68,7 +68,17 @@ import {
   GRADE_LEVELS,
   Student,
   Enrollment,
+  EnrollmentCreate,
 } from '@/schemas/students';
+
+// Enrollment form schema
+const EnrollmentFormSchema = z.object({
+  classroom_id: z.string().min(1, "Classroom is required"),
+  grade_level: z.string().min(1, "Grade level is required"),
+  enrollment_date: z.string().min(1, "Enrollment date is required"),
+});
+
+type EnrollmentFormData = z.infer<typeof EnrollmentFormSchema>;
 
 export default function StudentsPage() {
   const { user, activeSchool } = useAuth();
@@ -86,23 +96,25 @@ export default function StudentsPage() {
   const { data: students = [], isLoading, error } = useStudents({ 
     school_id: schoolId 
   });
+  const { data: academicYears = [] } = useYears();
+
+  // Get active academic year - handle both boolean and string formats
+  const activeYear = academicYears.find(y => {
+    const isActive = y.is_active;
+    return isActive === true || String(isActive).toLowerCase() === 'true' || String(isActive).toLowerCase() === 't';
+  });
+
   // Filter classrooms by active academic year for enrollment
   const classroomsQuery = useClassrooms(
     activeYear?.id ? { academic_year_id: activeYear.id } : {}
   );
   const { data: classrooms = [] } = classroomsQuery;
-  const { list: { data: academicYears = [] } } = useYears();
 
   // Mutations
   const createMutation = useCreateStudent();
   const updateMutation = useUpdateStudent(selectedStudent?.id || '');
   const deleteMutation = useDeleteStudent();
   const enrollMutation = useEnrollStudent();
-
-  // Get active academic year - handle both boolean and string formats
-  const activeYear = academicYears.find(y => 
-    y.is_active === true || y.is_active === 'true' || y.is_active === 't'
-  );
   
   // DEBUG: Log to see what's happening
   console.log('Students Page DEBUG:', {
@@ -115,14 +127,14 @@ export default function StudentsPage() {
   // Classrooms are already filtered by active academic year in the query above
   const availableClassrooms = classrooms;
 
-  // Form for create/edit
+  // Form for create/edit - Use proper types
   const {
     control,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<StudentCreate | StudentUpdate>({
-    resolver: zodResolver(editDialogOpen ? StudentUpdateSchema : StudentCreateSchema),
+  } = useForm<StudentCreate>({
+    resolver: zodResolver(StudentCreateSchema),
     defaultValues: {
       first_name: '',
       last_name: '',
@@ -132,11 +144,27 @@ export default function StudentsPage() {
     },
   });
 
+  // Separate form for edit with proper types
+  const {
+    control: editControl,
+    handleSubmit: handleEditSubmit,
+    reset: resetEdit,
+    formState: { errors: editErrors },
+  } = useForm<StudentUpdate>({
+    resolver: zodResolver(StudentUpdateSchema),
+    defaultValues: {
+      first_name: '',
+      last_name: '',
+      current_grade_level: '',
+    },
+  });
+
   // Enrollment form
-  const enrollForm = useForm({
+  const enrollForm = useForm<EnrollmentFormData>({
+    resolver: zodResolver(EnrollmentFormSchema),
     defaultValues: {
       classroom_id: '',
-      grade_level: '',  // ADD: grade level field
+      grade_level: '',
       enrollment_date: format(new Date(), 'yyyy-MM-dd'),
     },
   });
@@ -207,13 +235,13 @@ export default function StudentsPage() {
   };
 
   // Handle enroll
-  const handleEnroll = async (data: any) => {
+  const handleEnroll = async (data: EnrollmentFormData) => {
   if (!selectedStudent) return;
   try {
     await enrollMutation.mutateAsync({
       student_id: selectedStudent.id,
       classroom_id: data.classroom_id,
-      grade_level: data.grade_level || selectedStudent.current_grade_level,  // Include grade level
+      grade_level: data.grade_level,
       enrollment_date: data.enrollment_date,
     });
     setEnrollDialogOpen(false);
@@ -388,7 +416,7 @@ export default function StudentsPage() {
           </Typography>
         ) : (
           <List dense>
-            {enrollments.map((enrollment: any) => (
+            {enrollments.map((enrollment) => (
               <ListItem key={enrollment.id}>
                 <SchoolIcon sx={{ mr: 2, color: 'primary.main' }} />
                 <ListItemText
@@ -509,8 +537,8 @@ export default function StudentsPage() {
                 Failed to create student: {String(createMutation.error)}
               </Alert>
             )}
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={6}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mt: 1 }}>
+              <Box>
                 <Controller
                   name="first_name"
                   control={control}
@@ -526,8 +554,8 @@ export default function StudentsPage() {
                     />
                   )}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </Box>
+              <Box>
                 <Controller
                   name="last_name"
                   control={control}
@@ -543,8 +571,8 @@ export default function StudentsPage() {
                     />
                   )}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </Box>
+              <Box>
                 <Controller
                   name="entry_grade_level"
                   control={control}
@@ -560,14 +588,14 @@ export default function StudentsPage() {
                         ))}
                       </Select>
                       {errors.entry_grade_level && (
-                        <FormHelperText>{errors.entry_grade_level.message}</FormHelperText>
+                        <FormHelperText>{errors.entry_grade_level?.message}</FormHelperText>
                       )}
                     </FormControl>
                   )}
                 />
-              </Grid>
+              </Box>
               {/* Student ID and Email will be auto-generated on submit */}
-              <Grid item xs={6}>
+              <Box>
                 <Controller
                   name="date_of_birth"
                   control={control}
@@ -584,8 +612,8 @@ export default function StudentsPage() {
                     />
                   )}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </Box>
+              <Box>
                 <Controller
                   name="entry_date"
                   control={control}
@@ -602,8 +630,8 @@ export default function StudentsPage() {
                     />
                   )}
                 />
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
@@ -616,7 +644,7 @@ export default function StudentsPage() {
 
       {/* Edit Student Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
-        <form onSubmit={handleSubmit(handleUpdate)}>
+        <form onSubmit={handleEditSubmit(handleUpdate)}>
           <DialogTitle>Edit Student</DialogTitle>
           <DialogContent>
             {updateMutation.error && (
@@ -624,11 +652,11 @@ export default function StudentsPage() {
                 Failed to update student: {String(updateMutation.error)}
               </Alert>
             )}
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={6}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mt: 1 }}>
+              <Box>
                 <Controller
                   name="first_name"
-                  control={control}
+                  control={editControl}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -640,11 +668,11 @@ export default function StudentsPage() {
                     />
                   )}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </Box>
+              <Box>
                 <Controller
                   name="last_name"
-                  control={control}
+                  control={editControl}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -656,11 +684,11 @@ export default function StudentsPage() {
                     />
                   )}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </Box>
+              <Box>
                 <Controller
                   name="current_grade_level"
-                  control={control}
+                  control={editControl}
                   render={({ field }) => (
                     <FormControl fullWidth>
                       <InputLabel>Current Grade Level</InputLabel>
@@ -674,11 +702,11 @@ export default function StudentsPage() {
                     </FormControl>
                   )}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </Box>
+              <Box>
                 <Controller
                   name="student_id"
-                  control={control}
+                  control={editControl}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -689,11 +717,11 @@ export default function StudentsPage() {
                     />
                   )}
                 />
-              </Grid>
-              <Grid item xs={12}>
+              </Box>
+              <Box>
                 <Controller
                   name="email"
-                  control={control}
+                  control={editControl}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -705,11 +733,11 @@ export default function StudentsPage() {
                     />
                   )}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </Box>
+              <Box>
                 <Controller
                   name="date_of_birth"
-                  control={control}
+                  control={editControl}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -722,8 +750,8 @@ export default function StudentsPage() {
                     />
                   )}
                 />
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
@@ -767,8 +795,8 @@ export default function StudentsPage() {
                 </Stack>
               </Alert>
             )}
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Box>
                 <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <SchoolIcon color="primary" />
                   Select Classroom
@@ -814,8 +842,8 @@ export default function StudentsPage() {
                     </FormControl>
                   )}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </Box>
+              <Box>
                 <Typography variant="subtitle1" gutterBottom>
                   Enrollment Date
                 </Typography>
@@ -833,8 +861,8 @@ export default function StudentsPage() {
                     />
                   )}
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </Box>
+              <Box>
                 <Typography variant="subtitle1" gutterBottom>
                   Grade Level
                 </Typography>
@@ -846,8 +874,8 @@ export default function StudentsPage() {
                   size="medium"
                   helperText="Based on student's current grade level"
                 />
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </DialogContent>
           <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
             <Button 

@@ -22,7 +22,7 @@ export function YearSelector() {
   }
   
   const { selectedYear, setSelectedYear, setAvailableYears, isAdmin } = context;
-  const { list: { data: academicYears = [], isLoading } } = useYears();
+  const { data: academicYears = [], isLoading } = useYears();
 
   // DEBUG: Log values
   console.log('YearSelector DEBUG:', {

@@ -241,7 +241,7 @@ export default function SubjectsPage() {
       {/* Edit Dialog */}
       <SubjectFormDialog
         open={editDialogOpen}
-        initial={selectedSubject}
+        initial={selectedSubject || undefined}
         onClose={() => {
           setEditDialogOpen(false);
           setSelectedSubject(null);

@@ -1,6 +1,6 @@
 // src/components/tables/EntityGrid.tsx
 import * as React from "react";
-import { DataGrid, GridColDef, GridLoadingOverlayProps } from "@mui/x-data-grid";
+import { DataGrid, GridColDef, GridLoadingOverlayProps, GridValidRowModel, GridRowIdGetter } from "@mui/x-data-grid";
 import { Box, LinearProgress } from "@mui/material";
 
 function LoadingOverlay(_: GridLoadingOverlayProps) {
@@ -11,21 +11,21 @@ function LoadingOverlay(_: GridLoadingOverlayProps) {
   );
 }
 
-type EntityGridProps<T> = {
+type EntityGridProps<T extends GridValidRowModel> = {
   rows: T[];
   columns: GridColDef<T>[];
   loading?: boolean;
-  getRowId: (row: T) => string;
+  getRowId: GridRowIdGetter<T>;
   onRowDoubleClick?: (row: T) => void;
   checkboxSelection?: boolean;
   disableRowSelectionOnClick?: boolean;
 };
 
-export function EntityGrid<T>(props: EntityGridProps<T>) {
+export function EntityGrid<T extends GridValidRowModel>(props: EntityGridProps<T>) {
   const { rows, columns, loading, getRowId, onRowDoubleClick, checkboxSelection, disableRowSelectionOnClick } = props;
 
   return (
-    <DataGrid
+    <DataGrid<T>
       rows={rows}
       columns={columns}
       loading={!!loading}

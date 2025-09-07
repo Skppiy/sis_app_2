@@ -7,15 +7,7 @@ import {
   deleteSubject
 } from '../services/subjects';
 import type { Subject } from '@/schemas/academics';
-
-// Query keys
-export const subjectKeys = {
-  all: ['subjects'] as const,
-  lists: () => [...subjectKeys.all, 'list'] as const,
-  list: (filters?: any) => [...subjectKeys.lists(), filters] as const,
-  details: () => [...subjectKeys.all, 'detail'] as const,
-  detail: (id: string) => [...subjectKeys.details(), id] as const,
-};
+import { queryKeys } from '@/api/queryKeys';
 
 // Hook to list subjects
 export function useSubjects(filters?: {
@@ -25,7 +17,7 @@ export function useSubjects(filters?: {
   subject_type?: string;
 }) {
   return useQuery({
-    queryKey: subjectKeys.list(filters),
+    queryKey: queryKeys.subjects.list(filters),
     queryFn: () => listSubjects(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -38,7 +30,7 @@ export function useCreateSubject() {
   return useMutation({
     mutationFn: createSubject,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: subjectKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.lists() });
     },
   });
 }
@@ -50,8 +42,8 @@ export function useUpdateSubject(id: string) {
   return useMutation({
     mutationFn: (payload: Partial<Subject>) => updateSubject(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: subjectKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: subjectKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.lists() });
     },
   });
 }
@@ -63,7 +55,7 @@ export function useDeleteSubject() {
   return useMutation({
     mutationFn: deleteSubject,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: subjectKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.lists() });
     },
   });
 }

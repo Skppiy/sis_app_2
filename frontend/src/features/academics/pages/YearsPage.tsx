@@ -1,14 +1,18 @@
 import * as React from 'react';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { DataGrid, GridColDef, GridRowParams } from '@mui/x-data-grid';
-import { useYears } from '../hooks/useYears';
+import { useYears, useCreateYear, useUpdateYear, useDeleteYear } from '../hooks/useYears';
 import YearFormDialog from '../components/YearFormDialog';
 import { AcademicYear } from '../schemas/years';
 
 export default function YearsPage() {
-  const { list, create, update, remove } = useYears();
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<AcademicYear | null>(null);
+
+  const yearsQuery = useYears();
+  const createMutation = useCreateYear();
+  const updateMutation = useUpdateYear(editing?.id || '');
+  const deleteMutation = useDeleteYear();
 
   const cols: GridColDef[] = [
     { field: 'name', headerName: 'Name', flex: 1 },
@@ -23,11 +27,11 @@ export default function YearsPage() {
       <Stack direction="row" spacing={1}>
         <Button onClick={() => { setEditing(null); setOpen(true); }}>Add Year</Button>
         <Button
-          disabled={!list.data?.length}
+          disabled={!yearsQuery.data?.length}
           color="error"
           onClick={() => {
-            const first = list.data?.[0];
-            if (first) remove.mutate(first.id);
+            const first = yearsQuery.data?.[0];
+            if (first) deleteMutation.mutate(first.id);
           }}
         >
           Delete First (demo)
@@ -36,10 +40,10 @@ export default function YearsPage() {
 
       <Box sx={{ height: 480 }}>
         <DataGrid
-          rows={list.data ?? []}
+          rows={yearsQuery.data ?? []}
           columns={cols}
           getRowId={(r) => r.id}
-          loading={list.isLoading || list.isRefetching}
+          loading={yearsQuery.isLoading || yearsQuery.isRefetching}
           onRowDoubleClick={(p: GridRowParams) => { setEditing(p.row as AcademicYear); setOpen(true); }}
           disableRowSelectionOnClick
         />
@@ -51,9 +55,9 @@ export default function YearsPage() {
         onClose={() => setOpen(false)}
         onSubmit={async (values) => {
           if (editing) {
-            await update.mutateAsync({ id: editing.id, data: values });
+            await updateMutation.mutateAsync(values);
           } else {
-            await create.mutateAsync(values);
+            await createMutation.mutateAsync(values);
           }
         }}
       />

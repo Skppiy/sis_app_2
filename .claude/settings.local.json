@@ -4,7 +4,15 @@
       "Read(//c/Users/lehne/OneDrive/Pictures/Screenshots/**)",
       "Bash(npm run build:*)",
       "Bash(cat:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npm run type-check:*)",
+      "Bash(npx tsc:*)",
+      "Bash(sed:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(find:*)",
+      "Read(//d/SIS_APP_Prev/**)",
+      "Bash(tree:*)",
+      "Read(//d//**)"
     ],
     "deny": [],
     "ask": []

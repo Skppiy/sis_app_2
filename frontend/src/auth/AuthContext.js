@@ -8,6 +8,7 @@ const AuthContext = createContext(undefined);
 // Provider Component
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
+    const [activeSchool, setActiveSchool] = useState(null);
     const [token, setToken] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     // Check for existing token on mount
@@ -38,13 +39,15 @@ export function AuthProvider({ children }) {
                 // Extract school_id from roles (use first active role's school_id)
                 let schoolId = '';
                 if (result.roles && result.roles.length > 0) {
-                    const activeRole = result.roles.find((r) => r.is_active) || result.roles[0];
+                    const roles = result.roles;
+                    const activeRole = roles.find(r => r.is_active) || roles[0];
                     schoolId = activeRole.school_id;
                 }
                 // Extract role from roles array (use first active role)
                 let userRole = 'student';
                 if (result.roles && result.roles.length > 0) {
-                    const activeRole = result.roles.find((r) => r.is_active) || result.roles[0];
+                    const roles = result.roles;
+                    const activeRole = roles.find(r => r.is_active) || roles[0];
                     // Map backend role to frontend role
                     if (activeRole.role.toLowerCase().includes('admin') ||
                         activeRole.role.toLowerCase().includes('principal') ||
@@ -65,6 +68,34 @@ export function AuthProvider({ children }) {
                     school_id: schoolId
                 };
                 setUser(userWithSchool);
+                // Fetch and set active school if we have a school_id
+                if (schoolId) {
+                    try {
+                        const schoolResponse = await fetch(`${API_BASE_URL}/schools/${schoolId}`, {
+                            headers: {
+                                'Authorization': `Bearer ${authToken}`,
+                                'Content-Type': 'application/json',
+                            },
+                        });
+                        if (schoolResponse.ok) {
+                            const schoolData = await schoolResponse.json();
+                            setActiveSchool({
+                                id: schoolData.id,
+                                name: schoolData.name,
+                                code: schoolData.code || schoolData.name.substring(0, 3).toUpperCase()
+                            });
+                        }
+                    }
+                    catch (error) {
+                        console.error('Error fetching school details:', error);
+                        // Set a basic school object with just the ID if fetch fails
+                        setActiveSchool({
+                            id: schoolId,
+                            name: 'School',
+                            code: 'SCH'
+                        });
+                    }
+                }
             }
             else {
                 // Token invalid, clear it
@@ -119,11 +150,13 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('token');
         setToken(null);
         setUser(null);
+        setActiveSchool(null);
         window.location.href = '/login';
     };
     const isAuthenticated = !!token && !!user;
     const value = {
         user,
+        activeSchool,
         isAuthenticated,
         isLoading,
         login,

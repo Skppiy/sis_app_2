@@ -8,17 +8,11 @@ import {
   getRoom, 
   getRoomUsage 
 } from "../services/rooms";
-import { Room, RoomCreate, RoomUpdate, RoomUsage } from "@/schemas/facilities";
+import type { RoomCreate, RoomUpdate } from "@/schemas/facilities";
+import { queryKeys } from '@/api/queryKeys';
 
-// Query keys for React Query
-const queryKeys = {
-  rooms: (params?: any) => ['rooms', params] as const,
-  room: (id: string) => ['rooms', 'detail', id] as const,
-  roomUsage: (id: string) => ['rooms', 'usage', id] as const
-};
-
-// Main hook for rooms management
-export function useRooms(params?: {
+// Hook to list rooms
+export function useRooms(filters?: {
   school_id?: string;
   room_type?: string;
   bookable_only?: boolean;
@@ -29,85 +23,66 @@ export function useRooms(params?: {
   has_smartboard?: boolean;
   has_sink?: boolean;
 }) {
-  const queryClient = useQueryClient();
-
-  // List rooms with optional filtering
-  const list = useQuery({
-    queryKey: queryKeys.rooms(params),
-    queryFn: () => listRooms(params),
-    staleTime: 60_000, // 1 minute cache
+  return useQuery({
+    queryKey: queryKeys.rooms.list(filters),
+    queryFn: () => listRooms(filters),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
-
-  // Create room mutation
-  const create = useMutation({
-    mutationFn: (payload: RoomCreate) => createRoom(payload),
-    onSuccess: (newRoom) => {
-      // Invalidate and refetch rooms list
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
-      // Optionally set the new room in cache
-      queryClient.setQueryData(queryKeys.room(newRoom.id), newRoom);
-    },
-    onError: (error) => {
-      console.error('Error creating room:', error);
-    }
-  });
-
-  // Update room mutation
-  const update = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: RoomUpdate }) => 
-      updateRoom(id, payload),
-    onSuccess: (updatedRoom, { id }) => {
-      // Update the specific room in cache
-      queryClient.setQueryData(queryKeys.room(id), updatedRoom);
-      // Invalidate rooms list to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
-    },
-    onError: (error) => {
-      console.error('Error updating room:', error);
-    }
-  });
-
-  // Delete room mutation
-  const remove = useMutation({
-    mutationFn: (id: string) => deleteRoom(id),
-    onSuccess: (_, id) => {
-      // Remove from cache
-      queryClient.removeQueries({ queryKey: queryKeys.room(id) });
-      queryClient.removeQueries({ queryKey: queryKeys.roomUsage(id) });
-      // Invalidate rooms list
-      queryClient.invalidateQueries({ queryKey: ['rooms'] });
-    },
-    onError: (error) => {
-      console.error('Error deleting room:', error);
-    }
-  });
-
-  return { 
-    list, 
-    create, 
-    update, 
-    remove,
-    // Helper method to get room usage
-    getRoomUsage: (id: string) => getRoomUsage(id)
-  };
 }
 
-// Hook for single room details
-export function useRoom(id: string) {
+// Hook to get a specific room
+export function useRoom(id: string | undefined) {
   return useQuery({
-    queryKey: queryKeys.room(id),
-    queryFn: () => getRoom(id),
+    queryKey: queryKeys.rooms.detail(id!),
+    queryFn: () => getRoom(id!),
     enabled: !!id,
-    staleTime: 60_000
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// Hook to create a room
+export function useCreateRoom() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: createRoom,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.lists() });
+    },
+  });
+}
+
+// Hook to update a room
+export function useUpdateRoom(id: string) {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (payload: RoomUpdate) => updateRoom(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.lists() });
+    },
+  });
+}
+
+// Hook to delete a room
+export function useDeleteRoom() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: deleteRoom,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.lists() });
+    },
   });
 }
 
 // Hook for room usage information
-export function useRoomUsage(id: string) {
+export function useRoomUsage(id: string | undefined) {
   return useQuery({
-    queryKey: queryKeys.roomUsage(id),
-    queryFn: () => getRoomUsage(id),
+    queryKey: queryKeys.rooms.usage(id!),
+    queryFn: () => getRoomUsage(id!),
     enabled: !!id,
-    staleTime: 30_000 // 30 seconds cache for usage data
+    staleTime: 30_000, // 30 seconds cache for usage data
   });
 }

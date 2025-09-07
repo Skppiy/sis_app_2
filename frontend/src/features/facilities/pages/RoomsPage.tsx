@@ -31,7 +31,7 @@ import {
 } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridActionsCellItem, GridRowParams, GridRenderCellParams } from '@mui/x-data-grid';
 import { useQuery } from '@tanstack/react-query';
-import { useRooms } from '../hooks/useRooms';
+import { useRooms, useCreateRoom, useUpdateRoom, useDeleteRoom } from '../hooks/useRooms';
 import { RoomFormDialog } from '../components/RoomFormDialog';
 import { Room, RoomCreate, RoomUpdate, RoomTypes } from '@/schemas/facilities';
 import { useAuth } from '@/auth/AuthContext';
@@ -143,11 +143,15 @@ function UsageCell({ roomId }: { roomId: string }) {
 
 export default function RoomsPage() {
   const { user } = useAuth();
-  const { list, create, update, remove } = useRooms();
   
   // Modal states
   const [formOpen, setFormOpen] = React.useState(false);
   const [selectedRoom, setSelectedRoom] = React.useState<Room | null>(null);
+
+  const roomsQuery = useRooms();
+  const createMutation = useCreateRoom();
+  const updateMutation = useUpdateRoom(selectedRoom?.id || '');
+  const deleteMutation = useDeleteRoom();
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [roomToDelete, setRoomToDelete] = React.useState<Room | null>(null);
   const [usageDialogOpen, setUsageDialogOpen] = React.useState(false);
@@ -169,7 +173,7 @@ export default function RoomsPage() {
 
   // Get filtered rooms
   const filteredParams = React.useMemo(() => {
-    const params: any = {};
+    const params: Record<string, string | boolean> = {};
     if (filters.room_type) params.room_type = filters.room_type;
     if (filters.bookable_only) params.bookable_only = true;
     if (filters.available_only) params.available_only = true;
@@ -181,7 +185,7 @@ export default function RoomsPage() {
     return params;
   }, [filters, user?.school_id]);
 
-  const rooms = list.data || [];
+  const rooms = roomsQuery.data || [];
 
   const handleCreateRoom = () => {
     setSelectedRoom(null);
@@ -209,16 +213,17 @@ export default function RoomsPage() {
     try {
       setError(null);
       if (selectedRoom) {
-        await update.mutateAsync({ id: selectedRoom.id, payload: data as RoomUpdate });
+        await updateMutation.mutateAsync(data as RoomUpdate);
       } else {
-        await create.mutateAsync({
+        await createMutation.mutateAsync({
           ...data as RoomCreate,
           school_id: user?.school_id || ''
         });
       }
       setFormOpen(false);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
     }
   };
 
@@ -226,11 +231,12 @@ export default function RoomsPage() {
     if (!roomToDelete) return;
     
     try {
-      await remove.mutateAsync(roomToDelete.id);
+      await deleteMutation.mutateAsync(roomToDelete.id);
       setDeleteDialogOpen(false);
       setRoomToDelete(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete room');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete room';
+      setError(errorMessage);
     }
   };
 
@@ -442,7 +448,7 @@ export default function RoomsPage() {
         <DataGrid
           rows={rooms}
           columns={columns}
-          loading={list.isLoading}
+          loading={roomsQuery.isLoading}
           autoHeight
           disableRowSelectionOnClick
           pageSizeOptions={[10, 25, 50]}
@@ -457,7 +463,7 @@ export default function RoomsPage() {
           onClose={() => setFormOpen(false)}
           onSubmit={handleFormSubmit}
           room={selectedRoom}
-          isLoading={create.isPending || update.isPending}
+          isLoading={createMutation.isPending || updateMutation.isPending}
           error={error}
           schoolId={user?.school_id || ''}
         />
@@ -479,9 +485,9 @@ export default function RoomsPage() {
             <Button 
               onClick={confirmDelete}
               color="error"
-              disabled={remove.isPending}
+              disabled={deleteMutation.isPending}
             >
-              {remove.isPending ? 'Deleting...' : 'Delete'}
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogActions>
         </Dialog>

@@ -12,17 +12,7 @@ import {
   getNextStudentId
 } from '../services/students';
 import type { StudentCreate, StudentUpdate } from '@/schemas/students';
-
-// Query keys
-export const studentKeys = {
-  all: ['students'] as const,
-  lists: () => [...studentKeys.all, 'list'] as const,
-  list: (filters?: any) => [...studentKeys.lists(), filters] as const,
-  details: () => [...studentKeys.all, 'detail'] as const,
-  detail: (id: string) => [...studentKeys.details(), id] as const,
-  enrollments: (studentId: string) => [...studentKeys.all, 'enrollments', studentId] as const,
-  nextId: (schoolId: string) => [...studentKeys.all, 'nextId', schoolId] as const,
-};
+import { queryKeys } from '@/api/queryKeys';
 
 // Hook to list students
 export function useStudents(filters?: {
@@ -31,7 +21,7 @@ export function useStudents(filters?: {
   is_active?: boolean;
 }) {
   return useQuery({
-    queryKey: studentKeys.list(filters),
+    queryKey: queryKeys.students.list(filters),
     queryFn: () => listStudents(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -40,7 +30,7 @@ export function useStudents(filters?: {
 // Hook to get a specific student
 export function useStudent(id: string | undefined) {
   return useQuery({
-    queryKey: studentKeys.detail(id!),
+    queryKey: queryKeys.students.detail(id!),
     queryFn: () => getStudent(id!),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
@@ -54,7 +44,7 @@ export function useCreateStudent() {
   return useMutation({
     mutationFn: createStudent,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: studentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
     },
   });
 }
@@ -66,8 +56,8 @@ export function useUpdateStudent(id: string) {
   return useMutation({
     mutationFn: (payload: StudentUpdate) => updateStudent(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: studentKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: studentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
     },
   });
 }
@@ -79,7 +69,7 @@ export function useDeleteStudent() {
   return useMutation({
     mutationFn: deleteStudent,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: studentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.students.lists() });
     },
   });
 }
@@ -93,7 +83,7 @@ export function useStudentEnrollments(
   }
 ) {
   return useQuery({
-    queryKey: studentKeys.enrollments(studentId!),
+    queryKey: queryKeys.students.enrollments(studentId!),
     queryFn: () => getStudentEnrollments(studentId!, params),
     enabled: !!studentId,
     staleTime: 5 * 60 * 1000,
@@ -109,7 +99,7 @@ export function useEnrollStudent() {
     onSuccess: (_, variables) => {
       // Invalidate the student's enrollment list
       queryClient.invalidateQueries({ 
-        queryKey: studentKeys.enrollments(variables.student_id) 
+        queryKey: queryKeys.students.enrollments(variables.student_id) 
       });
       // Also invalidate classroom rosters if needed
       queryClient.invalidateQueries({ 
@@ -127,7 +117,7 @@ export function useWithdrawEnrollment(studentId: string) {
     mutationFn: withdrawEnrollment,
     onSuccess: () => {
       queryClient.invalidateQueries({ 
-        queryKey: studentKeys.enrollments(studentId) 
+        queryKey: queryKeys.students.enrollments(studentId) 
       });
     },
   });
@@ -136,7 +126,7 @@ export function useWithdrawEnrollment(studentId: string) {
 // Hook to get next student ID
 export function useNextStudentId(schoolId: string | undefined) {
   return useQuery({
-    queryKey: studentKeys.nextId(schoolId!),
+    queryKey: queryKeys.students.nextId(schoolId!),
     queryFn: () => getNextStudentId(schoolId!),
     enabled: !!schoolId,
     staleTime: 0, // Always fresh

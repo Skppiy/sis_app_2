@@ -121,7 +121,7 @@ export default function SubjectsPage() {
                             showQuickFilter: true,
                             quickFilterProps: { debounceMs: 500 },
                         },
-                    } }) }), _jsx(SubjectFormDialog, { open: createDialogOpen, onClose: () => setCreateDialogOpen(false), onSubmit: handleCreate }), _jsx(SubjectFormDialog, { open: editDialogOpen, initial: selectedSubject, onClose: () => {
+                    } }) }), _jsx(SubjectFormDialog, { open: createDialogOpen, onClose: () => setCreateDialogOpen(false), onSubmit: handleCreate }), _jsx(SubjectFormDialog, { open: editDialogOpen, initial: selectedSubject || undefined, onClose: () => {
                     setEditDialogOpen(false);
                     setSelectedSubject(null);
                 }, onSubmit: handleUpdate }), _jsxs(Dialog, { open: deleteConfirmOpen, onClose: () => setDeleteConfirmOpen(false), children: [_jsx(DialogTitle, { children: "Confirm Delete" }), _jsx(DialogContent, { children: _jsxs(Typography, { children: ["Are you sure you want to delete subject \"", selectedSubject?.name, "\"? This may affect existing classrooms that use this subject."] }) }), _jsxs(DialogActions, { children: [_jsx(Button, { onClick: () => setDeleteConfirmOpen(false), children: "Cancel" }), _jsx(Button, { onClick: handleDelete, color: "error", variant: "contained", disabled: deleteMutation.isPending, children: deleteMutation.isPending ? 'Deleting...' : 'Delete' })] })] })] }));

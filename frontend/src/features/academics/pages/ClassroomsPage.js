@@ -18,14 +18,17 @@ export default function ClassroomsPage() {
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const schoolId = activeSchool?.id;
     // Get academic years and find active one
-    const { list: { data: academicYears = [] } } = useYears();
-    const activeYear = academicYears.find((y) => y.is_active === true || y.is_active === 'true' || y.is_active === 't');
-    // Queries - filter by active academic year
-    const { data: classrooms = [], isLoading, error } = useClassrooms({
-        academic_year_id: activeYear?.id
+    const { data: academicYears = [] } = useYears();
+    const activeYear = academicYears.find(y => {
+        const isActive = y.is_active;
+        return isActive === true || String(isActive) === 'true' || String(isActive) === 't';
     });
+    // Queries - filter by active academic year
+    const classroomsQuery = useClassrooms(activeYear?.id ? { academic_year_id: activeYear.id } : {});
+    const { data: classrooms = [], isLoading, error } = classroomsQuery;
+    console.log('Classrooms data:', { classrooms, activeYear, isLoading, error });
     const { data: subjects = [] } = useSubjects();
-    const { list: { data: rooms = [] } } = useRooms();
+    const { data: rooms = [] } = useRooms();
     // Mutations
     const createMutation = useCreateClassroom();
     const updateMutation = useUpdateClassroom(selectedClassroom?.id || '');
@@ -129,7 +132,7 @@ export default function ClassroomsPage() {
     if (error) {
         return (_jsx(Paper, { sx: { p: 3 }, children: _jsx(Alert, { severity: "error", children: "Failed to load classrooms" }) }));
     }
-    return (_jsxs(Box, { children: [_jsxs(Paper, { sx: { p: 2, mb: 2 }, children: [_jsxs(Stack, { direction: "row", justifyContent: "space-between", alignItems: "center", children: [_jsxs(Box, { children: [_jsx(Typography, { variant: "h5", children: "Classrooms" }), activeYear && (_jsxs(Typography, { variant: "body2", color: "text.secondary", sx: { mt: 0.5 }, children: ["Academic Year: ", activeYear.name] }))] }), _jsx(Button, { variant: "contained", startIcon: _jsx(AddIcon, {}), onClick: () => setCreateDialogOpen(true), disabled: !activeYear, children: "Add Classroom" })] }), !activeYear && (_jsx(Alert, { severity: "warning", sx: { mt: 2 }, children: _jsxs(Stack, { direction: "row", alignItems: "center", spacing: 1, children: [_jsx(SchoolIcon, {}), _jsxs(Box, { children: [_jsx(Typography, { variant: "subtitle2", children: "No Active Academic Year" }), _jsx(Typography, { variant: "body2", children: "Please set an active academic year to manage classrooms." })] })] }) }))] }), _jsx(Paper, { sx: { height: 600 }, children: _jsx(DataGrid, { rows: classrooms, columns: columns, loading: isLoading, pageSizeOptions: [10, 25, 50], initialState: {
+    return (_jsxs(Box, { children: [_jsxs(Paper, { sx: { p: 2, mb: 2 }, children: [_jsxs(Stack, { direction: "row", justifyContent: "space-between", alignItems: "center", children: [_jsxs(Box, { children: [_jsx(Typography, { variant: "h5", children: "Classrooms" }), activeYear && (_jsxs(Typography, { variant: "body2", color: "text.secondary", sx: { mt: 0.5 }, children: ["Academic Year: ", activeYear.name] }))] }), _jsx(Button, { variant: "contained", startIcon: _jsx(AddIcon, {}), onClick: () => setCreateDialogOpen(true), disabled: !activeYear, children: "Add Classroom" })] }), !activeYear && (_jsx(Alert, { severity: "warning", sx: { mt: 2 }, children: _jsxs(Stack, { direction: "row", alignItems: "center", spacing: 1, children: [_jsx(SchoolIcon, {}), _jsxs(Box, { children: [_jsx(Typography, { variant: "subtitle2", children: "No Active Academic Year" }), _jsx(Typography, { variant: "body2", children: "Please set an active academic year to manage classrooms." })] })] }) }))] }), _jsx(Paper, { sx: { height: 600 }, children: _jsx(DataGrid, { rows: classrooms || [], columns: columns, loading: isLoading, pageSizeOptions: [10, 25, 50], initialState: {
                         pagination: { paginationModel: { pageSize: 10 } },
                     }, slots: {
                         toolbar: GridToolbar,
@@ -138,5 +141,5 @@ export default function ClassroomsPage() {
                             showQuickFilter: true,
                             quickFilterProps: { debounceMs: 500 },
                         },
-                    } }) }), _jsxs(Dialog, { open: createDialogOpen, onClose: () => setCreateDialogOpen(false), children: [_jsx(DialogTitle, { children: "Add Classroom" }), _jsx(DialogContent, { children: _jsx(Typography, { children: "Form implementation coming next..." }) }), _jsx(DialogActions, { children: _jsx(Button, { onClick: () => setCreateDialogOpen(false), children: "Cancel" }) })] }), _jsxs(Dialog, { open: editDialogOpen, onClose: () => setEditDialogOpen(false), children: [_jsx(DialogTitle, { children: "Edit Classroom" }), _jsx(DialogContent, { children: _jsx(Typography, { children: "Edit form implementation coming next..." }) }), _jsx(DialogActions, { children: _jsx(Button, { onClick: () => setEditDialogOpen(false), children: "Cancel" }) })] }), _jsxs(Dialog, { open: deleteConfirmOpen, onClose: () => setDeleteConfirmOpen(false), children: [_jsx(DialogTitle, { children: "Confirm Delete" }), _jsx(DialogContent, { children: _jsxs(Typography, { children: ["Are you sure you want to delete classroom \"", selectedClassroom?.name, "\"? This will also remove all student enrollments in this classroom."] }) }), _jsxs(DialogActions, { children: [_jsx(Button, { onClick: () => setDeleteConfirmOpen(false), children: "Cancel" }), _jsx(Button, { onClick: handleDelete, color: "error", variant: "contained", disabled: deleteMutation.isPending, children: deleteMutation.isPending ? 'Deleting...' : 'Delete' })] })] })] }));
+                    }, getRowId: (row) => row.id }) }), _jsxs(Dialog, { open: createDialogOpen, onClose: () => setCreateDialogOpen(false), children: [_jsx(DialogTitle, { children: "Add Classroom" }), _jsx(DialogContent, { children: _jsx(Typography, { children: "Form implementation coming next..." }) }), _jsx(DialogActions, { children: _jsx(Button, { onClick: () => setCreateDialogOpen(false), children: "Cancel" }) })] }), _jsxs(Dialog, { open: editDialogOpen, onClose: () => setEditDialogOpen(false), children: [_jsx(DialogTitle, { children: "Edit Classroom" }), _jsx(DialogContent, { children: _jsx(Typography, { children: "Edit form implementation coming next..." }) }), _jsx(DialogActions, { children: _jsx(Button, { onClick: () => setEditDialogOpen(false), children: "Cancel" }) })] }), _jsxs(Dialog, { open: deleteConfirmOpen, onClose: () => setDeleteConfirmOpen(false), children: [_jsx(DialogTitle, { children: "Confirm Delete" }), _jsx(DialogContent, { children: _jsxs(Typography, { children: ["Are you sure you want to delete classroom \"", selectedClassroom?.name, "\"? This will also remove all student enrollments in this classroom."] }) }), _jsxs(DialogActions, { children: [_jsx(Button, { onClick: () => setDeleteConfirmOpen(false), children: "Cancel" }), _jsx(Button, { onClick: handleDelete, color: "error", variant: "contained", disabled: deleteMutation.isPending, children: deleteMutation.isPending ? 'Deleting...' : 'Delete' })] })] })] }));
 }

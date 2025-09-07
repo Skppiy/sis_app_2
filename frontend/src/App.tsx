@@ -25,7 +25,7 @@ function Nav() {
         <Box sx={{ fontWeight: 600 }}>SIS</Box>
         <Box sx={{ flex: 1 }} />
         {items.map((i) => (
-          <Button key={i.to} color="inherit" component={Link as any} to={i.to}>
+          <Button key={i.to} color="inherit" component={Link} to={i.to}>
             {i.label}
           </Button>
         ))}

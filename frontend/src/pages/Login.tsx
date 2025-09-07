@@ -20,8 +20,9 @@ export default function Login() {
     try {
       await login(username, password);
       navigate({ to: '/app/dashboard' });
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Login failed';
+      setError(errorMessage);
     }
   };
 

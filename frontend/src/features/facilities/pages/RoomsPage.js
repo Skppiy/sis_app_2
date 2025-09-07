@@ -5,7 +5,7 @@ import { Paper, Typography, Button, Box, Chip, Tooltip, Dialog, DialogTitle, Dia
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Info as InfoIcon, FilterList as FilterIcon } from '@mui/icons-material';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import { useQuery } from '@tanstack/react-query';
-import { useRooms } from '../hooks/useRooms';
+import { useRooms, useCreateRoom, useUpdateRoom, useDeleteRoom } from '../hooks/useRooms';
 import { RoomFormDialog } from '../components/RoomFormDialog';
 import { RoomTypes } from '@/schemas/facilities';
 import { useAuth } from '@/auth/AuthContext';
@@ -49,10 +49,13 @@ function UsageCell({ roomId }) {
 }
 export default function RoomsPage() {
     const { user } = useAuth();
-    const { list, create, update, remove } = useRooms();
     // Modal states
     const [formOpen, setFormOpen] = React.useState(false);
     const [selectedRoom, setSelectedRoom] = React.useState(null);
+    const roomsQuery = useRooms();
+    const createMutation = useCreateRoom();
+    const updateMutation = useUpdateRoom(selectedRoom?.id || '');
+    const deleteMutation = useDeleteRoom();
     const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
     const [roomToDelete, setRoomToDelete] = React.useState(null);
     const [usageDialogOpen, setUsageDialogOpen] = React.useState(false);
@@ -90,7 +93,7 @@ export default function RoomsPage() {
             params.school_id = user.school_id;
         return params;
     }, [filters, user?.school_id]);
-    const rooms = list.data || [];
+    const rooms = roomsQuery.data || [];
     const handleCreateRoom = () => {
         setSelectedRoom(null);
         setFormOpen(true);
@@ -113,10 +116,10 @@ export default function RoomsPage() {
         try {
             setError(null);
             if (selectedRoom) {
-                await update.mutateAsync({ id: selectedRoom.id, payload: data });
+                await updateMutation.mutateAsync(data);
             }
             else {
-                await create.mutateAsync({
+                await createMutation.mutateAsync({
                     ...data,
                     school_id: user?.school_id || ''
                 });
@@ -124,19 +127,21 @@ export default function RoomsPage() {
             setFormOpen(false);
         }
         catch (err) {
-            setError(err.message || 'An error occurred');
+            const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+            setError(errorMessage);
         }
     };
     const confirmDelete = async () => {
         if (!roomToDelete)
             return;
         try {
-            await remove.mutateAsync(roomToDelete.id);
+            await deleteMutation.mutateAsync(roomToDelete.id);
             setDeleteDialogOpen(false);
             setRoomToDelete(null);
         }
         catch (err) {
-            setError(err.message || 'Failed to delete room');
+            const errorMessage = err instanceof Error ? err.message : 'Failed to delete room';
+            setError(errorMessage);
         }
     };
     const clearFilters = () => {
@@ -214,7 +219,7 @@ export default function RoomsPage() {
             }
         }
     ];
-    return (_jsx(Paper, { sx: { p: 3 }, children: _jsxs(Stack, { spacing: 3, children: [_jsxs(Box, { sx: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' }, children: [_jsx(Typography, { variant: "h5", component: "h1", children: "Room Management" }), _jsxs(Box, { sx: { display: 'flex', gap: 1 }, children: [_jsx(Button, { startIcon: _jsx(FilterIcon, {}), onClick: () => setFiltersOpen(!filtersOpen), variant: "outlined", children: "Filters" }), _jsx(Button, { startIcon: _jsx(AddIcon, {}), onClick: handleCreateRoom, variant: "contained", children: "Add Room" })] })] }), filtersOpen && (_jsx(Paper, { sx: { p: 2, bgcolor: 'background.default' }, children: _jsxs(Stack, { spacing: 2, children: [_jsx(Typography, { variant: "h6", children: "Filters" }), _jsxs(Box, { sx: { display: 'flex', gap: 2, flexWrap: 'wrap' }, children: [_jsxs(FormControl, { size: "small", sx: { minWidth: 120 }, children: [_jsx(InputLabel, { children: "Room Type" }), _jsxs(Select, { value: filters.room_type, onChange: (e) => setFilters(prev => ({ ...prev, room_type: e.target.value })), label: "Room Type", children: [_jsx(MenuItem, { value: "", children: "All Types" }), RoomTypes.map((type) => (_jsx(MenuItem, { value: type, children: type.replace('_', ' ') }, type)))] })] }), _jsx(FormControlLabel, { control: _jsx(Switch, { checked: filters.bookable_only, onChange: (e) => setFilters(prev => ({ ...prev, bookable_only: e.target.checked })) }), label: "Bookable Only" }), _jsx(FormControlLabel, { control: _jsx(Switch, { checked: filters.available_only, onChange: (e) => setFilters(prev => ({ ...prev, available_only: e.target.checked })) }), label: "Available Only" })] }), _jsx(Box, { sx: { display: 'flex', gap: 1 }, children: _jsx(Button, { size: "small", onClick: clearFilters, children: "Clear Filters" }) })] }) })), _jsx(DataGrid, { rows: rooms, columns: columns, loading: list.isLoading, autoHeight: true, disableRowSelectionOnClick: true, pageSizeOptions: [10, 25, 50], initialState: {
+    return (_jsx(Paper, { sx: { p: 3 }, children: _jsxs(Stack, { spacing: 3, children: [_jsxs(Box, { sx: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' }, children: [_jsx(Typography, { variant: "h5", component: "h1", children: "Room Management" }), _jsxs(Box, { sx: { display: 'flex', gap: 1 }, children: [_jsx(Button, { startIcon: _jsx(FilterIcon, {}), onClick: () => setFiltersOpen(!filtersOpen), variant: "outlined", children: "Filters" }), _jsx(Button, { startIcon: _jsx(AddIcon, {}), onClick: handleCreateRoom, variant: "contained", children: "Add Room" })] })] }), filtersOpen && (_jsx(Paper, { sx: { p: 2, bgcolor: 'background.default' }, children: _jsxs(Stack, { spacing: 2, children: [_jsx(Typography, { variant: "h6", children: "Filters" }), _jsxs(Box, { sx: { display: 'flex', gap: 2, flexWrap: 'wrap' }, children: [_jsxs(FormControl, { size: "small", sx: { minWidth: 120 }, children: [_jsx(InputLabel, { children: "Room Type" }), _jsxs(Select, { value: filters.room_type, onChange: (e) => setFilters(prev => ({ ...prev, room_type: e.target.value })), label: "Room Type", children: [_jsx(MenuItem, { value: "", children: "All Types" }), RoomTypes.map((type) => (_jsx(MenuItem, { value: type, children: type.replace('_', ' ') }, type)))] })] }), _jsx(FormControlLabel, { control: _jsx(Switch, { checked: filters.bookable_only, onChange: (e) => setFilters(prev => ({ ...prev, bookable_only: e.target.checked })) }), label: "Bookable Only" }), _jsx(FormControlLabel, { control: _jsx(Switch, { checked: filters.available_only, onChange: (e) => setFilters(prev => ({ ...prev, available_only: e.target.checked })) }), label: "Available Only" })] }), _jsx(Box, { sx: { display: 'flex', gap: 1 }, children: _jsx(Button, { size: "small", onClick: clearFilters, children: "Clear Filters" }) })] }) })), _jsx(DataGrid, { rows: rooms, columns: columns, loading: roomsQuery.isLoading, autoHeight: true, disableRowSelectionOnClick: true, pageSizeOptions: [10, 25, 50], initialState: {
                         pagination: { paginationModel: { pageSize: 25 } }
-                    } }), _jsx(RoomFormDialog, { open: formOpen, onClose: () => setFormOpen(false), onSubmit: handleFormSubmit, room: selectedRoom, isLoading: create.isPending || update.isPending, error: error, schoolId: user?.school_id || '' }), _jsxs(Dialog, { open: deleteDialogOpen, onClose: () => setDeleteDialogOpen(false), children: [_jsx(DialogTitle, { children: "Delete Room" }), _jsx(DialogContent, { children: _jsxs(Typography, { children: ["Are you sure you want to delete \"", roomToDelete?.name, "\"? This action cannot be undone."] }) }), _jsxs(DialogActions, { children: [_jsx(Button, { onClick: () => setDeleteDialogOpen(false), children: "Cancel" }), _jsx(Button, { onClick: confirmDelete, color: "error", disabled: remove.isPending, children: remove.isPending ? 'Deleting...' : 'Delete' })] })] }), _jsxs(Dialog, { open: usageDialogOpen, onClose: () => setUsageDialogOpen(false), maxWidth: "sm", fullWidth: true, children: [_jsxs(DialogTitle, { children: ["Room Usage: ", selectedRoom?.name] }), _jsx(DialogContent, { children: _jsx(Typography, { children: "Room usage information will be displayed here. This feature connects to the backend usage endpoint." }) }), _jsx(DialogActions, { children: _jsx(Button, { onClick: () => setUsageDialogOpen(false), children: "Close" }) })] })] }) }));
+                    } }), _jsx(RoomFormDialog, { open: formOpen, onClose: () => setFormOpen(false), onSubmit: handleFormSubmit, room: selectedRoom, isLoading: createMutation.isPending || updateMutation.isPending, error: error, schoolId: user?.school_id || '' }), _jsxs(Dialog, { open: deleteDialogOpen, onClose: () => setDeleteDialogOpen(false), children: [_jsx(DialogTitle, { children: "Delete Room" }), _jsx(DialogContent, { children: _jsxs(Typography, { children: ["Are you sure you want to delete \"", roomToDelete?.name, "\"? This action cannot be undone."] }) }), _jsxs(DialogActions, { children: [_jsx(Button, { onClick: () => setDeleteDialogOpen(false), children: "Cancel" }), _jsx(Button, { onClick: confirmDelete, color: "error", disabled: deleteMutation.isPending, children: deleteMutation.isPending ? 'Deleting...' : 'Delete' })] })] }), _jsxs(Dialog, { open: usageDialogOpen, onClose: () => setUsageDialogOpen(false), maxWidth: "sm", fullWidth: true, children: [_jsxs(DialogTitle, { children: ["Room Usage: ", selectedRoom?.name] }), _jsx(DialogContent, { children: _jsx(Typography, { children: "Room usage information will be displayed here. This feature connects to the backend usage endpoint." }) }), _jsx(DialogActions, { children: _jsx(Button, { onClick: () => setUsageDialogOpen(false), children: "Close" }) })] })] }) }));
 }
