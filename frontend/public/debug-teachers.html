@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Teachers API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin-bottom: 30px; border: 1px solid #ccc; padding: 20px; }
+        .debug-output { background: #f5f5f5; padding: 10px; white-space: pre-wrap; max-height: 500px; overflow-y: auto; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .error { color: red; }
+        .success { color: green; }
+        input { padding: 10px; margin: 5px; width: 300px; }
+    </style>
+</head>
+<body>
+    <h1>SIS Teacher API Debug Tool</h1>
+    
+    <div class="section">
+        <h2>Authentication</h2>
+        <input type="email" id="email" placeholder="Email" value="admin@example.com">
+        <input type="password" id="password" placeholder="Password" value="admin123">
+        <button onclick="authenticate()">Login</button>
+        <button onclick="checkToken()">Check Current Token</button>
+        <div id="auth-output" class="debug-output"></div>
+    </div>
+
+    <div class="section">
+        <h2>Database Evidence (Provided)</h2>
+        <div class="debug-output">
+teacher_user_id values from database:
+- 2a054e50-5920-4cf2-8660-6c748eded404
+- 0825414b-e74c-433b-b379-4460d710a9f7
+- 04e492ce-345f-40b2-abfb-5e680a067296
+- 65d7ca31-8a0d-46d0-ae3b-2ac010f01e5f
+
+All have role_name: "Homeroom Teacher", is_active: true
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>API Tests</h2>
+        <button onclick="testTeachersAPI()">Test /admin/teachers</button>
+        <button onclick="testClassroomsAPI()">Test /classrooms</button>
+        <button onclick="compareIDs()">Compare IDs</button>
+        <div id="api-output" class="debug-output"></div>
+    </div>
+
+    <div class="section">
+        <h2>ID Matching Analysis</h2>
+        <button onclick="analyzeMatching()">Analyze ID Matching Logic</button>
+        <div id="matching-output" class="debug-output"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8000';
+        let authToken = null;
+        let teachersData = null;
+        let classroomsData = null;
+        
+        const databaseTeacherIds = [
+            '2a054e50-5920-4cf2-8660-6c748eded404',
+            '0825414b-e74c-433b-b379-4460d710a9f7',
+            '04e492ce-345f-40b2-abfb-5e680a067296',
+            '65d7ca31-8a0d-46d0-ae3b-2ac010f01e5f'
+        ];
+
+        function log(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = `[${timestamp}] `;
+            const className = isError ? 'error' : 'success';
+            element.innerHTML += `<span class="${className}">${prefix}${message}</span>\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        function checkToken() {
+            authToken = localStorage.getItem('token');
+            if (authToken) {
+                log('auth-output', `Found token: ${authToken.substring(0, 20)}...`);
+            } else {
+                log('auth-output', 'No token found in localStorage', true);
+            }
+        }
+
+        async function authenticate() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const formData = new FormData();
+                formData.append('username', email);
+                formData.append('password', password);
+
+                log('auth-output', 'Attempting login...');
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const error = await response.text();
+                    throw new Error(`Login failed: ${error}`);
+                }
+
+                const data = await response.json();
+                authToken = data.access_token;
+                localStorage.setItem('token', authToken);
+                
+                log('auth-output', `Login successful! Token: ${authToken.substring(0, 20)}...`);
+            } catch (error) {
+                log('auth-output', `Login error: ${error.message}`, true);
+            }
+        }
+
+        async function testTeachersAPI() {
+            if (!authToken) {
+                log('api-output', 'No auth token. Please login first.', true);
+                return;
+            }
+
+            try {
+                log('api-output', 'Testing /admin/teachers API...');
+                const response = await fetch(`${API_BASE_URL}/admin/teachers`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                teachersData = await response.json();
+                log('api-output', `/admin/teachers Response:\n${JSON.stringify(teachersData, null, 2)}`);
+                
+                // Analyze teacher IDs
+                if (Array.isArray(teachersData)) {
+                    const teacherIds = teachersData.map(t => t.id);
+                    log('api-output', `\nTeacher IDs from API: ${teacherIds.join(', ')}`);
+                    
+                    // Check matches with database evidence
+                    const matches = databaseTeacherIds.filter(dbId => teacherIds.includes(dbId));
+                    log('api-output', `\nMatching IDs with database: ${matches.length}/${databaseTeacherIds.length}`);
+                    if (matches.length > 0) {
+                        log('api-output', `Matched IDs: ${matches.join(', ')}`);
+                    } else {
+                        log('api-output', 'NO MATCHES FOUND! This could be the issue.', true);
+                    }
+                }
+            } catch (error) {
+                log('api-output', `Teachers API error: ${error.message}`, true);
+            }
+        }
+
+        async function testClassroomsAPI() {
+            if (!authToken) {
+                log('api-output', 'No auth token. Please login first.', true);
+                return;
+            }
+
+            try {
+                log('api-output', '\nTesting /classrooms API...');
+                const response = await fetch(`${API_BASE_URL}/classrooms`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                classroomsData = await response.json();
+                log('api-output', `/classrooms Response:\n${JSON.stringify(classroomsData, null, 2)}`);
+                
+                // Analyze teacher assignments
+                if (Array.isArray(classroomsData)) {
+                    classroomsData.forEach((classroom, index) => {
+                        log('api-output', `\nClassroom ${index + 1}: ${classroom.name || 'Unnamed'}`);
+                        if (classroom.teacher_assignments && Array.isArray(classroom.teacher_assignments)) {
+                            classroom.teacher_assignments.forEach((assignment, assignIndex) => {
+                                log('api-output', `  Assignment ${assignIndex + 1}:`);
+                                log('api-output', `    teacher_user_id: ${assignment.teacher_user_id}`);
+                                log('api-output', `    teacher object: ${JSON.stringify(assignment.teacher, null, 4)}`);
+                                
+                                // Check if teacher_user_id matches database evidence
+                                const isInDatabase = databaseTeacherIds.includes(assignment.teacher_user_id);
+                                log('api-output', `    In database evidence: ${isInDatabase ? 'YES' : 'NO'}`, !isInDatabase);
+                            });
+                        } else {
+                            log('api-output', '  No teacher_assignments found', true);
+                        }
+                    });
+                }
+            } catch (error) {
+                log('api-output', `Classrooms API error: ${error.message}`, true);
+            }
+        }
+
+        async function compareIDs() {
+            if (!teachersData || !classroomsData) {
+                log('matching-output', 'Please run both API tests first.', true);
+                return;
+            }
+
+            log('matching-output', 'COMPARING IDS ACROSS DATA SOURCES:\n');
+            
+            // Get teacher IDs from /admin/teachers
+            const apiTeacherIds = Array.isArray(teachersData) ? teachersData.map(t => t.id) : [];
+            log('matching-output', `Teacher IDs from /admin/teachers: [${apiTeacherIds.join(', ')}]`);
+            
+            // Get teacher_user_ids from /classrooms
+            const classroomTeacherIds = [];
+            if (Array.isArray(classroomsData)) {
+                classroomsData.forEach(classroom => {
+                    if (classroom.teacher_assignments) {
+                        classroom.teacher_assignments.forEach(assignment => {
+                            if (assignment.teacher_user_id) {
+                                classroomTeacherIds.push(assignment.teacher_user_id);
+                            }
+                        });
+                    }
+                });
+            }
+            log('matching-output', `Teacher IDs from /classrooms: [${classroomTeacherIds.join(', ')}]`);
+            log('matching-output', `Database evidence IDs: [${databaseTeacherIds.join(', ')}]`);
+            
+            // Find intersections
+            const apiVsDatabase = databaseTeacherIds.filter(id => apiTeacherIds.includes(id));
+            const classroomVsDatabase = databaseTeacherIds.filter(id => classroomTeacherIds.includes(id));
+            const apiVsClassroom = apiTeacherIds.filter(id => classroomTeacherIds.includes(id));
+            
+            log('matching-output', `\nMATCH ANALYSIS:`);
+            log('matching-output', `API teachers ∩ Database: ${apiVsDatabase.length}/${databaseTeacherIds.length} matches`);
+            log('matching-output', `Classroom assignments ∩ Database: ${classroomVsDatabase.length}/${databaseTeacherIds.length} matches`);
+            log('matching-output', `API teachers ∩ Classroom assignments: ${apiVsClassroom.length} matches`);
+            
+            if (apiVsDatabase.length === 0) {
+                log('matching-output', '\n🚨 CRITICAL: No teacher IDs from API match database evidence!', true);
+            }
+            if (classroomVsDatabase.length === 0) {
+                log('matching-output', '🚨 CRITICAL: No classroom assignment IDs match database evidence!', true);
+            }
+            if (apiVsClassroom.length === 0) {
+                log('matching-output', '🚨 CRITICAL: No teacher IDs match between API and classroom assignments!', true);
+            }
+        }
+
+        async function analyzeMatching() {
+            log('matching-output', '\nANALYZING FRONTEND ENRICHMENT LOGIC:\n');
+            
+            // Simulate the frontend enrichment logic
+            if (!teachersData || !classroomsData) {
+                log('matching-output', 'Need API data first. Run API tests.', true);
+                return;
+            }
+            
+            // Create teacher map like frontend does
+            const teacherMap = new Map();
+            if (Array.isArray(teachersData)) {
+                teachersData.forEach(teacher => {
+                    teacherMap.set(teacher.id, teacher);
+                    log('matching-output', `Teacher map entry: ${teacher.id} -> ${teacher.first_name} ${teacher.last_name}`);
+                });
+            }
+            
+            log('matching-output', `\nTeacher map size: ${teacherMap.size}`);
+            
+            // Test enrichment for each classroom
+            if (Array.isArray(classroomsData)) {
+                classroomsData.forEach((classroom, index) => {
+                    log('matching-output', `\nClassroom ${index + 1}: ${classroom.name}`);
+                    
+                    if (classroom.teacher_assignments) {
+                        classroom.teacher_assignments.forEach((assignment, assignIndex) => {
+                            const teacherId = assignment.teacher_user_id;
+                            const enrichedTeacher = teacherMap.get(teacherId);
+                            
+                            log('matching-output', `  Assignment ${assignIndex + 1}:`);
+                            log('matching-output', `    Looking for ID: ${teacherId}`);
+                            log('matching-output', `    Found in map: ${enrichedTeacher ? 'YES' : 'NO'}`, !enrichedTeacher);
+                            
+                            if (enrichedTeacher) {
+                                log('matching-output', `    Teacher: ${enrichedTeacher.first_name} ${enrichedTeacher.last_name}`);
+                            } else {
+                                log('matching-output', `    Result: "Not assigned" will be shown`, true);
+                                
+                                // Check if ID exists but with different format
+                                const similarIds = Array.from(teacherMap.keys()).filter(mapId => 
+                                    mapId.toLowerCase() === teacherId.toLowerCase() ||
+                                    mapId.replace(/-/g, '') === teacherId.replace(/-/g, '')
+                                );
+                                
+                                if (similarIds.length > 0) {
+                                    log('matching-output', `    Similar IDs found: ${similarIds.join(', ')}`, true);
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+        }
+
+        // Check for existing token on page load
+        window.onload = function() {
+            checkToken();
+        };
+    </script>
+</body>
+</html>

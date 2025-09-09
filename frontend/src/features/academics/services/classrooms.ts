@@ -1,11 +1,11 @@
 // src/features/academics/services/classrooms.ts
-import { apiFetch } from "@api/requestHelper";
+import { apiFetch } from "@/api/requestHelper";
 import { 
   Classroom, 
   ClassroomSchema, 
   ClassroomCreate,
   ClassroomUpdate 
-} from "@schemas/academics";
+} from "@/schemas/academics";
 import { z } from "zod";
 
 const ClassroomsListSchema = z.array(ClassroomSchema);

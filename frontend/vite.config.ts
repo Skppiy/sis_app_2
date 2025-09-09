@@ -3,7 +3,12 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react({
+      // Enable Fast Refresh for better HMR
+      fastRefresh: true,
+    })
+  ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -21,5 +26,42 @@ export default defineConfig({
   server: {
     port: 5173,
     open: false,
+    hmr: {
+      overlay: true,
+    },
+  },
+  build: {
+    // Optimize chunks for better loading performance
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate vendor chunks
+          'mui-core': ['@mui/material', '@emotion/react', '@emotion/styled'],
+          'mui-datagrid': ['@mui/x-data-grid'],
+          'mui-icons': ['@mui/icons-material'],
+          'react-vendor': ['react', 'react-dom'],
+          'forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          'router': ['@tanstack/react-router'],
+          'query': ['@tanstack/react-query', '@tanstack/react-query-devtools'],
+          'utils': ['date-fns'],
+        },
+      },
+    },
+    // Optimize chunk size warnings
+    chunkSizeWarningLimit: 1000,
+    // Enable source maps for better debugging
+    sourcemap: true,
+  },
+  optimizeDeps: {
+    // Pre-bundle large dependencies
+    include: [
+      'react',
+      'react-dom',
+      '@mui/material',
+      '@mui/icons-material',
+      '@mui/x-data-grid',
+      '@emotion/react',
+      '@emotion/styled',
+    ],
   },
 });

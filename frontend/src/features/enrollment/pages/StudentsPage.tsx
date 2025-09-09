@@ -6,7 +6,6 @@ import {
   Button,
   IconButton,
   Typography,
-  Chip,
   Stack,
   Dialog,
   DialogTitle,
@@ -18,30 +17,33 @@ import {
   FormControl,
   InputLabel,
   Alert,
-  Tooltip,
-  Collapse,
+  FormHelperText,
   List,
   ListItem,
   ListItemText,
+  ListItemAvatar,
   ListItemSecondaryAction,
-  FormHelperText,
+  Avatar,
+  Chip,
+  Tooltip,
+  InputAdornment,
+  alpha,
+  useTheme,
 } from '@mui/material';
 import {
-  DataGrid,
-  GridColDef,
-  GridRenderCellParams,
-  GridRowParams,
-  GridToolbar,
-} from '@mui/x-data-grid';
-import {
   Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
   School as SchoolIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
   PersonAdd as PersonAddIcon,
   Close as CloseIcon,
+  ViewModule as CardViewIcon,
+  ViewList as ListViewIcon,
+  Person as PersonIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Email as EmailIcon,
+  Cake as CakeIcon,
+  School as EnrollmentIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -70,6 +72,7 @@ import {
   Enrollment,
   EnrollmentCreate,
 } from '@/schemas/students';
+import { StudentGrid, EnhancedEnrollmentManager } from '@/components/students';
 
 // Enrollment form schema
 const EnrollmentFormSchema = z.object({
@@ -82,13 +85,18 @@ type EnrollmentFormData = z.infer<typeof EnrollmentFormSchema>;
 
 export default function StudentsPage() {
   const { user, activeSchool } = useAuth();
+  const theme = useTheme();
   
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
+  const [bulkEnrollDialogOpen, setBulkEnrollDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedStudentsForBulk, setSelectedStudentsForBulk] = useState<Student[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [useEnhancedView, setUseEnhancedView] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const schoolId = activeSchool?.id;
   
@@ -170,16 +178,6 @@ export default function StudentsPage() {
   });
 
 
-  // Toggle row expansion
-  const toggleRowExpansion = (studentId: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(studentId)) {
-      newExpanded.delete(studentId);
-    } else {
-      newExpanded.add(studentId);
-    }
-    setExpandedRows(newExpanded);
-  };
 
   // Handle create
   const handleCreate = async (data: StudentCreate) => {
@@ -251,209 +249,141 @@ export default function StudentsPage() {
   }
 };
 
-  // DataGrid columns
-  // DataGrid columns - FIXED valueGetter syntax
-  // DataGrid columns - FIXED valueGetter syntax + Added Enrolled column
-  const columns: GridColDef[] = [
-    {
-      field: 'expand',
-      headerName: '',
-      width: 50,
-      renderCell: (params: GridRenderCellParams) => (
-        <IconButton
-          size="small"
-          onClick={() => toggleRowExpansion(params.row.id)}
-        >
-          {expandedRows.has(params.row.id) ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-        </IconButton>
-      ),
-    },
-    {
-      field: 'student_id',
-      headerName: 'Student ID',
-      width: 100,
-      renderCell: (params) => params.value || '-',
-    },
-    {
-      field: 'name',
-      headerName: 'Name',
-      width: 180,
-      renderCell: (params: GridRenderCellParams) => {
-        const firstName = params.row?.first_name || '';
-        const lastName = params.row?.last_name || '';
-        return `${firstName} ${lastName}`.trim() || '-';
-      },
-    },
-    {
-      field: 'current_grade_level',
-      headerName: 'Grade',
-      width: 80,
-      renderCell: (params) => {
-        const grade = GRADE_LEVELS.find(g => g.value === params.value);
-        return grade ? grade.label : params.value;
-      },
-    },
-    {
-      field: 'enrollment_count', // Use actual API field when backend is updated
-      headerName: 'Enrolled',
-      width: 100,
-      renderCell: (params: GridRenderCellParams) => {
-        // TODO: Replace with actual enrollment_count from API
-        // For now, show placeholder until backend provides enrollment_count
-        return (
-          <Chip
-            label="Check"
-            size="small"
-            color="default"
-            onClick={() => toggleRowExpansion(params.row.id)}
-            sx={{ cursor: 'pointer' }}
-          />
-        );
-      },
-    },
-    {
-      field: 'email',
-      headerName: 'Email',
-      width: 180,
-      renderCell: (params) => params.value || '-',
-    },
-    {
-      field: 'date_of_birth',
-      headerName: 'Birth Date',
-      width: 120,
-      renderCell: (params) => 
-        params.value ? format(new Date(params.value), 'MM/dd/yyyy') : '-',
-    },
-    {
-      field: 'is_active',
-      headerName: 'Status',
-      width: 90,
-      renderCell: (params) => (
-        <Chip
-          label={params.value ? 'Active' : 'Inactive'}
-          color={params.value ? 'success' : 'default'}
-          size="small"
-        />
-      ),
-    }, // ← CRITICAL: This comma was missing, causing the syntax error
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 150,
-      renderCell: (params: GridRenderCellParams) => (
-        <Stack direction="row" spacing={1}>
-          <Tooltip title="Enroll in Class">
-            <IconButton
-              size="small"
-              onClick={() => {
-                setSelectedStudent(params.row);
-                setEnrollDialogOpen(true);
-              }}
-            >
-              <PersonAddIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Edit">
-            <IconButton
-              size="small"
-              onClick={() => {
-                setSelectedStudent(params.row);
-                reset(params.row);
-                setEditDialogOpen(true);
-              }}
-            >
-              <EditIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton
-              size="small"
-              color="error"
-              onClick={() => {
-                setSelectedStudent(params.row);
-                setDeleteConfirmOpen(true);
-              }}
-            >
-              <DeleteIcon />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      ),
-    },
-  ]; // ← Array properly closed
-
-  // Render enrollment details row
-  const EnrollmentDetails = ({ student }: { student: Student }) => {
-    const { data: enrollments = [], isLoading } = useStudentEnrollments(student.id, {
-      active_only: true,
-      academic_year_id: activeYear?.id, // Filter by active academic year
-    });
-    const withdrawMutation = useWithdrawEnrollment(student.id);
-  
-    const handleWithdraw = async (enrollmentId: string) => {
-      try {
-        await withdrawMutation.mutateAsync(enrollmentId);
-      } catch (error) {
-        console.error('Failed to withdraw enrollment:', error);
-      }
-    };
-  
-    if (isLoading) return <Typography>Loading enrollments...</Typography>;
-  
-    return (
-      <Box sx={{ p: 2, bgcolor: 'grey.50' }}>
-        <Typography variant="subtitle2" gutterBottom>
-          Current Enrollments (Grade {student.current_grade_level})
-          {activeYear && (
-            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-              • {activeYear.name}
-            </Typography>
-          )}
-        </Typography>
-        {enrollments.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            Not enrolled in any classes
-          </Typography>
-        ) : (
-          <List dense>
-            {enrollments.map((enrollment) => (
-              <ListItem key={enrollment.id}>
-                <SchoolIcon sx={{ mr: 2, color: 'primary.main' }} />
-                <ListItemText
-                  primary={
-                    <>
-                      Classroom ID: {enrollment.classroom_id}
-                      {enrollment.grade_level && (
-                        <Chip 
-                          label={`Grade ${enrollment.grade_level}`} 
-                          size="small" 
-                          sx={{ ml: 1 }}
-                        />
-                      )}
-                    </>
-                  }
-                  secondary={`Enrolled: ${
-                    enrollment.enrollment_date 
-                      ? format(new Date(enrollment.enrollment_date), 'MM/dd/yyyy')
-                      : 'N/A'
-                  }`}
-                />
-                <ListItemSecondaryAction>
-                  <Button
-                    size="small"
-                    color="error"
-                    onClick={() => handleWithdraw(enrollment.id)}
-                  >
-                    Withdraw
-                  </Button>
-                </ListItemSecondaryAction>
-              </ListItem>
-            ))}
-          </List>
-        )}
-      </Box>
-    );
+  // Handle withdraw enrollment
+  const handleWithdrawEnrollment = async (studentId: string, enrollmentId: string) => {
+    try {
+      const withdrawMutation = useWithdrawEnrollment(studentId);
+      await withdrawMutation.mutateAsync(enrollmentId);
+    } catch (error) {
+      console.error('Failed to withdraw enrollment:', error);
+    }
   };
+
+  // Bulk operations handlers
+  const handleBulkEnroll = (students: Student[]) => {
+    setSelectedStudentsForBulk(students);
+    setBulkEnrollDialogOpen(true);
+  };
+
+  const handleProcessBulkEnrollments = async (enrollmentSelections: any[]) => {
+    try {
+      // Process each enrollment selection
+      for (const selection of enrollmentSelections) {
+        for (const student of selection.students) {
+          await enrollMutation.mutateAsync({
+            student_id: student.id,
+            classroom_id: selection.classroom_id,
+            grade_level: selection.grade_level,
+            enrollment_date: selection.enrollment_date,
+            is_audit_only: selection.is_audit_only,
+            requires_accommodation: selection.requires_accommodation,
+          });
+        }
+      }
+      console.log('Bulk enrollments completed successfully');
+    } catch (error) {
+      console.error('Failed to process bulk enrollments:', error);
+      throw error;
+    }
+  };
+
+  const handleBulkActivate = async (studentIds: string[]) => {
+    try {
+      // Implementation would depend on your backend API
+      console.log('Bulk activating students:', studentIds);
+    } catch (error) {
+      console.error('Failed to bulk activate students:', error);
+    }
+  };
+
+  const handleBulkInactivate = async (studentIds: string[]) => {
+    try {
+      // Implementation would depend on your backend API
+      console.log('Bulk inactivating students:', studentIds);
+    } catch (error) {
+      console.error('Failed to bulk inactivate students:', error);
+    }
+  };
+
+  const handleBulkDelete = async (studentIds: string[]) => {
+    try {
+      for (const id of studentIds) {
+        await deleteMutation.mutateAsync(id);
+      }
+      console.log('Bulk delete completed');
+    } catch (error) {
+      console.error('Failed to bulk delete students:', error);
+    }
+  };
+
+  const handleBulkExport = async (studentIds: string[], format: 'csv' | 'pdf') => {
+    try {
+      // Implementation would depend on your export functionality
+      console.log(`Exporting ${studentIds.length} students as ${format}`);
+    } catch (error) {
+      console.error('Failed to export students:', error);
+    }
+  };
+
+  const handleBulkEmail = async (studentIds: string[]) => {
+    try {
+      // Implementation would depend on your email functionality
+      console.log('Sending bulk email to students:', studentIds);
+    } catch (error) {
+      console.error('Failed to send bulk email:', error);
+    }
+  };
+
+  const handleBulkSms = async (studentIds: string[]) => {
+    try {
+      // Implementation would depend on your SMS functionality
+      console.log('Sending bulk SMS to students:', studentIds);
+    } catch (error) {
+      console.error('Failed to send bulk SMS:', error);
+    }
+  };
+
+  const handleBulkReport = async (studentIds: string[], reportType: string) => {
+    try {
+      // Implementation would depend on your reporting functionality
+      console.log(`Generating ${reportType} report for students:`, studentIds);
+    } catch (error) {
+      console.error('Failed to generate bulk report:', error);
+    }
+  };
+
+  // Helper functions for list view
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
+  const getGradeLabel = (gradeValue: string) => {
+    const grade = GRADE_LEVELS.find(g => g.value === gradeValue);
+    return grade ? grade.label : gradeValue;
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      return format(new Date(dateString), 'MMM dd, yyyy');
+    } catch {
+      return 'Invalid Date';
+    }
+  };
+
+  // Filter and search students
+  const filteredStudents = useMemo(() => {
+    return students.filter(student => {
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        student.first_name.toLowerCase().includes(searchLower) ||
+        student.last_name.toLowerCase().includes(searchLower) ||
+        student.email?.toLowerCase().includes(searchLower) ||
+        student.student_id?.toLowerCase().includes(searchLower)
+      );
+    });
+  }, [students, searchQuery]);
+
 
   if (error) {
     return (
@@ -465,66 +395,306 @@ export default function StudentsPage() {
 
   return (
     <Box>
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
+      {/* Enhanced Header Section */}
+      <Paper 
+        sx={{ 
+          p: 3, 
+          mb: 3,
+          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.02)} 0%, ${alpha(theme.palette.primary.light, 0.05)} 100%)`,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+        }} 
+      >
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
           <Box>
-            <Typography variant="h5">Students</Typography>
-            {activeYear && (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Academic Year: {activeYear.name} (Enrollments)
-              </Typography>
-            )}
+            <Typography variant="h4" component="h1" sx={{ fontWeight: 600, mb: 1 }}>
+              Student Management
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              {activeYear ? (
+                `Academic Year: ${activeYear.name} • ${filteredStudents.length} students`
+              ) : (
+                `${filteredStudents.length} students • No active academic year`
+              )}
+            </Typography>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => {
-              // Open dialog - useEffect will handle form reset and ID generation
-              setCreateDialogOpen(true);
-            }}
-          >
-            Add Student
-          </Button>
+          <Stack direction="row" spacing={2}>
+            <Stack direction="row" spacing={1} sx={{ 
+              bgcolor: alpha(theme.palette.primary.main, 0.04),
+              borderRadius: 2,
+              p: 0.5,
+            }}>
+              <Button
+                variant={viewMode === 'cards' ? "contained" : "text"}
+                startIcon={<CardViewIcon />}
+                onClick={() => setViewMode('cards')}
+                size="small"
+                sx={{ minWidth: 'auto' }}
+              >
+                Cards
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? "contained" : "text"}
+                startIcon={<ListViewIcon />}
+                onClick={() => setViewMode('list')}
+                size="small"
+                sx={{ minWidth: 'auto' }}
+              >
+                List
+              </Button>
+            </Stack>
+            {viewMode === 'cards' && (
+              <Button
+                variant={useEnhancedView ? "contained" : "outlined"}
+                onClick={() => setUseEnhancedView(!useEnhancedView)}
+                size="small"
+              >
+                {useEnhancedView ? 'Enhanced' : 'Standard'}
+              </Button>
+            )}
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setCreateDialogOpen(true)}
+              size="large"
+              sx={{ 
+                borderRadius: 2,
+                px: 3,
+              }}
+            >
+              Add Student
+            </Button>
+          </Stack>
         </Stack>
-      </Paper>
 
-      <Paper sx={{ height: 600 }}>
-        <DataGrid
-          rows={students}
-          columns={columns}
-          loading={isLoading}
-          pageSizeOptions={[10, 25, 50]}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10 } },
+        {/* Search Bar */}
+        <TextField
+          fullWidth
+          placeholder="Search students by name, email, or ID..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ color: theme.palette.text.secondary }} />
+              </InputAdornment>
+            ),
           }}
-          slots={{
-            toolbar: GridToolbar,
-          }}
-          slotProps={{
-            toolbar: {
-              showQuickFilter: true,
-              quickFilterProps: { debounceMs: 500 },
-            },
-          }}
-          getRowHeight={() => 'auto'}
           sx={{
-            '& .MuiDataGrid-row': {
-              cursor: 'pointer',
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 2,
             },
           }}
         />
-        {/* Render expanded enrollment details */}
-        {Array.from(expandedRows).map((studentId) => {
-          const student = students.find(s => s.id === studentId);
-          if (!student) return null;
-          
-          return (
-            <Collapse key={studentId} in={expandedRows.has(studentId)}>
-              <EnrollmentDetails student={student} />
-            </Collapse>
-          );
-        })}
       </Paper>
+
+      {/* Content - Conditional based on view mode */}
+      {viewMode === 'cards' ? (
+        <StudentGrid
+          students={filteredStudents}
+          loading={isLoading}
+          onEdit={(student) => {
+            setSelectedStudent(student);
+            resetEdit(student);
+            setEditDialogOpen(true);
+          }}
+          onDelete={(student) => {
+            setSelectedStudent(student);
+            setDeleteConfirmOpen(true);
+          }}
+          onEnroll={(student) => {
+            setSelectedStudent(student);
+            setEnrollDialogOpen(true);
+          }}
+          onWithdrawEnrollment={handleWithdrawEnrollment}
+          academicYearName={activeYear?.name}
+          academicYearId={activeYear?.id}
+          itemsPerPage={12}
+          useEnhancedCards={useEnhancedView}
+          showBulkOperations={useEnhancedView}
+          availableClassrooms={availableClassrooms.map(c => ({ 
+            id: c.id, 
+            name: c.name, 
+            subject: c.subject 
+          }))}
+          onBulkEnroll={(studentIds, classroomId) => {
+            const studentsForBulk = filteredStudents.filter(s => studentIds.includes(s.id));
+            handleBulkEnroll(studentsForBulk);
+          }}
+          onBulkActivate={handleBulkActivate}
+          onBulkInactivate={handleBulkInactivate}
+          onBulkDelete={handleBulkDelete}
+          onBulkExport={handleBulkExport}
+          onBulkEmail={handleBulkEmail}
+          onBulkSms={handleBulkSms}
+          onBulkReport={handleBulkReport}
+        />
+      ) : (
+        /* Professional List View */
+        <Paper sx={{ mb: 3 }}>
+          {isLoading ? (
+            <Box sx={{ p: 2 }}>
+              <Typography>Loading students...</Typography>
+            </Box>
+          ) : (
+            <List sx={{ p: 0 }}>
+              {filteredStudents.map((student, index) => (
+                <ListItem
+                  key={student.id}
+                  sx={{
+                    borderBottom: index < filteredStudents.length - 1 ? 1 : 0,
+                    borderColor: 'divider',
+                    py: 2,
+                    px: 3,
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.04),
+                    },
+                  }}
+                >
+                  <ListItemAvatar>
+                    <Avatar
+                      sx={{
+                        bgcolor: student.is_active
+                          ? theme.palette.primary.main
+                          : theme.palette.grey[500],
+                        width: 48,
+                        height: 48,
+                        fontSize: '1.1rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {getInitials(student.first_name, student.last_name)}
+                    </Avatar>
+                  </ListItemAvatar>
+                  
+                  <ListItemText
+                    primary={
+                      <Stack direction="row" alignItems="center" spacing={2}>
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                          {student.first_name} {student.last_name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          ID: {student.student_id || 'N/A'}
+                        </Typography>
+                        <Chip 
+                          label={getGradeLabel(student.current_grade_level)} 
+                          size="small"
+                          sx={{
+                            background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
+                            color: 'white',
+                            fontWeight: 500,
+                            fontSize: '0.75rem',
+                          }}
+                        />
+                        <Chip 
+                          label={student.is_active ? 'Active' : 'Inactive'} 
+                          size="small" 
+                          color={student.is_active ? 'success' : 'default'}
+                          variant={student.is_active ? 'filled' : 'outlined'}
+                        />
+                      </Stack>
+                    }
+                    secondary={
+                      <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
+                        {student.email && (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <EmailIcon sx={{ fontSize: 16, mr: 1, color: theme.palette.text.secondary }} />
+                            <Typography variant="body2" color="text.secondary">
+                              {student.email}
+                            </Typography>
+                          </Box>
+                        )}
+                        {student.date_of_birth && (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <CakeIcon sx={{ fontSize: 16, mr: 1, color: theme.palette.text.secondary }} />
+                            <Typography variant="body2" color="text.secondary">
+                              Born: {formatDate(student.date_of_birth)}
+                            </Typography>
+                          </Box>
+                        )}
+                        {student.entry_date && (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <EnrollmentIcon sx={{ fontSize: 16, mr: 1, color: theme.palette.text.secondary }} />
+                            <Typography variant="body2" color="text.secondary">
+                              Enrolled: {formatDate(student.entry_date)}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Stack>
+                    }
+                  />
+                  
+                  <ListItemSecondaryAction>
+                    <Stack direction="row" spacing={1}>
+                      <Tooltip title="Enroll in Class">
+                        <IconButton
+                          onClick={() => {
+                            setSelectedStudent(student);
+                            setEnrollDialogOpen(true);
+                          }}
+                          size="small"
+                          sx={{ 
+                            color: theme.palette.primary.main,
+                            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
+                          }}
+                        >
+                          <PersonAddIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Edit Student">
+                        <IconButton
+                          onClick={() => {
+                            setSelectedStudent(student);
+                            resetEdit(student);
+                            setEditDialogOpen(true);
+                          }}
+                          size="small"
+                          sx={{ 
+                            color: theme.palette.info.main,
+                            '&:hover': { bgcolor: alpha(theme.palette.info.main, 0.1) }
+                          }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete Student">
+                        <IconButton
+                          onClick={() => {
+                            setSelectedStudent(student);
+                            setDeleteConfirmOpen(true);
+                          }}
+                          size="small"
+                          sx={{ 
+                            color: theme.palette.error.main,
+                            '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+              
+              {/* Empty State */}
+              {filteredStudents.length === 0 && (
+                <Box sx={{ p: 6, textAlign: 'center' }}>
+                  <PersonIcon sx={{ fontSize: 64, color: theme.palette.text.disabled, mb: 2 }} />
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
+                    No students found
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {searchQuery 
+                      ? `No students match "${searchQuery}"`
+                      : 'No students enrolled yet'
+                    }
+                  </Typography>
+                </Box>
+              )}
+            </List>
+          )}
+        </Paper>
+      )}
 
       {/* Create Dialog */}
       {/* Create Student Dialog - FIXED: Separate from enrollment */}
@@ -919,6 +1089,24 @@ export default function StudentsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Enhanced Bulk Enrollment Dialog */}
+      <EnhancedEnrollmentManager
+        open={bulkEnrollDialogOpen}
+        onClose={() => setBulkEnrollDialogOpen(false)}
+        students={selectedStudentsForBulk}
+        classrooms={availableClassrooms.map(c => ({
+          id: c.id,
+          name: c.name,
+          subject: c.subject,
+          room: c.room,
+          capacity: undefined, // Add if available in your data
+          enrolled_count: undefined, // Add if available in your data
+          academic_year_id: activeYear?.id,
+        }))}
+        academicYearName={activeYear?.name}
+        onEnroll={handleProcessBulkEnrollments}
+      />
     </Box>
   );
 }

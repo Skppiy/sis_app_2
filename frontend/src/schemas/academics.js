@@ -23,6 +23,7 @@ export const SubjectSchema = z.object({
     subject_type: z.string().default("CORE"), // CORE, ENRICHMENT, SPECIAL
     applies_to_elementary: z.boolean().default(true),
     applies_to_middle: z.boolean().default(true),
+    applies_to_high: z.boolean().default(true),
     is_homeroom_default: z.boolean().default(false),
     requires_specialist: z.boolean().default(false),
     allows_cross_grade: z.boolean().default(false),
@@ -35,6 +36,7 @@ export const SubjectCreateSchema = z.object({
     subject_type: z.string().default("CORE"),
     applies_to_elementary: z.boolean().default(true),
     applies_to_middle: z.boolean().default(true),
+    applies_to_high: z.boolean().default(true),
     is_homeroom_default: z.boolean().default(false),
     requires_specialist: z.boolean().default(false),
     allows_cross_grade: z.boolean().default(false),
@@ -44,6 +46,7 @@ export const SubjectUpdateSchema = z.object({
     subject_type: z.string().optional(),
     applies_to_elementary: z.boolean().optional(),
     applies_to_middle: z.boolean().optional(),
+    applies_to_high: z.boolean().optional(),
     is_homeroom_default: z.boolean().optional(),
     requires_specialist: z.boolean().optional(),
     allows_cross_grade: z.boolean().optional(),
@@ -55,12 +58,112 @@ export const RoomSchema = z.object({
     building: z.string().optional(),
     capacity: z.number().int().optional(),
 });
-// Teacher info schema
+// Teacher info schema (basic)
 export const TeacherInfoSchema = z.object({
     id: z.string().uuid(),
     first_name: z.string(),
     last_name: z.string(),
     email: z.string().email(),
+});
+// Full Teacher schema for teacher management
+// Enhanced with better defaults and optional field handling for API compatibility
+export const TeacherSchema = z.object({
+    id: z.string().uuid(),
+    first_name: z.string().min(1),
+    last_name: z.string().min(1),
+    email: z.string().email().nullable().optional(),
+    grade_level: z.string().nullable().optional(), // For elementary homeroom teachers
+    homeroom_id: z.string().uuid().nullable().optional(), // Room assigned as homeroom
+    homeroom_name: z.string().nullable().optional(), // Populated from room data
+    is_specialist: z.boolean().default(false),
+    specialist_subject: z.string().nullable().optional(), // e.g., "PE", "Music", "Library"
+    specialist_room_id: z.string().uuid().nullable().optional(), // Room where specialist teaches
+    specialist_room_name: z.string().nullable().optional(), // Populated from room data
+    is_active: z.boolean().default(true),
+    student_count: z.number().int().default(0), // Current student assignment count
+}).transform((data) => {
+    // Transform function to provide safe defaults for display
+    return {
+        ...data,
+        email: data.email || undefined,
+        grade_level: data.grade_level || undefined,
+        homeroom_id: data.homeroom_id || undefined,
+        homeroom_name: data.homeroom_name || undefined,
+        specialist_subject: data.specialist_subject || undefined,
+        specialist_room_id: data.specialist_room_id || undefined,
+        specialist_room_name: data.specialist_room_name || undefined,
+        student_count: data.student_count ?? 0,
+    };
+});
+// Helper function for client-side teacher data transformation
+export function transformTeacherForDisplay(teacher) {
+    return {
+        id: teacher.id || '',
+        first_name: teacher.first_name || '',
+        last_name: teacher.last_name || '',
+        email: teacher.email,
+        grade_level: teacher.grade_level,
+        homeroom_id: teacher.homeroom_id,
+        homeroom_name: teacher.homeroom_name,
+        is_specialist: teacher.is_specialist ?? false,
+        specialist_subject: teacher.specialist_subject,
+        specialist_room_id: teacher.specialist_room_id,
+        specialist_room_name: teacher.specialist_room_name,
+        is_active: teacher.is_active ?? true,
+        student_count: teacher.student_count ?? 0,
+    };
+}
+// Helper function to safely get room assignment display text
+export function getTeacherRoomDisplay(teacher) {
+    if (teacher.is_specialist) {
+        return teacher.specialist_room_name || 'Not assigned';
+    }
+    return teacher.homeroom_name || 'Not assigned';
+}
+// Helper function to safely get subject display text
+export function getTeacherSubjectDisplay(teacher) {
+    if (teacher.is_specialist) {
+        return teacher.specialist_subject || 'General Specialist';
+    }
+    return teacher.grade_level ? `Grade ${teacher.grade_level}` : 'Not assigned';
+}
+export const TeacherCreateSchema = z.object({
+    first_name: z.string().min(1, "First name is required"),
+    last_name: z.string().min(1, "Last name is required"),
+    email: z.string().email("Valid email is required").optional().or(z.literal("")),
+    grade_level: z.string().optional(),
+    homeroom_id: z.string().uuid().optional(),
+    is_specialist: z.boolean().default(false),
+    specialist_subject: z.string().optional(),
+    specialist_room_id: z.string().uuid().optional(),
+    is_active: z.boolean().default(true),
+}).transform((data) => {
+    // Clean up empty strings and ensure consistent data
+    return {
+        ...data,
+        email: data.email === '' ? undefined : data.email,
+        grade_level: data.grade_level === '' ? undefined : data.grade_level,
+        specialist_subject: data.specialist_subject === '' ? undefined : data.specialist_subject,
+    };
+});
+export const TeacherUpdateSchema = z.object({
+    first_name: z.string().min(1, "First name is required").optional(),
+    last_name: z.string().min(1, "Last name is required").optional(),
+    email: z.string().email("Valid email is required").optional(),
+    grade_level: z.string().optional(),
+    homeroom_id: z.string().uuid().optional(),
+    is_specialist: z.boolean().optional(),
+    specialist_subject: z.string().optional(),
+    specialist_room_id: z.string().uuid().optional(),
+    is_active: z.boolean().optional(),
+}).transform((data) => {
+    // Clean up empty strings and ensure consistent data
+    return {
+        ...data,
+        email: data.email === '' ? undefined : data.email,
+        grade_level: data.grade_level === '' ? undefined : data.grade_level,
+        specialist_subject: data.specialist_subject === '' ? undefined : data.specialist_subject,
+    };
 });
 // Teacher assignment schema
 export const TeacherAssignmentSchema = z.object({

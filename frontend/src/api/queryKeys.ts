@@ -1,65 +1,68 @@
-// src/api/queryKeys.ts
+// src/api/queryKeys.ts - Simplified query key patterns
 export const queryKeys = {
   // Auth
   auth: {
     context: ['auth', 'context'] as const,
   },
 
-  // Academic Years
+  // Academic Years - Simplified structure
   years: {
     all: ['years'] as const,
-    lists: () => [...queryKeys.years.all, 'list'] as const,
-    list: (filters?: any) => [...queryKeys.years.lists(), filters] as const,
-    details: () => [...queryKeys.years.all, 'detail'] as const,
-    detail: (id: string) => [...queryKeys.years.details(), id] as const,
+    list: (filters?: any) => ['years', 'list', filters] as const,
+    detail: (id: string) => ['years', 'detail', id] as const,
+    // Helper for invalidating all list queries
+    lists: () => ['years', 'list'] as const,
   },
 
-  // Subjects
+  // Subjects - Simplified structure
   subjects: {
     all: ['subjects'] as const,
-    lists: () => [...queryKeys.subjects.all, 'list'] as const,
-    list: (filters?: any) => [...queryKeys.subjects.lists(), filters] as const,
-    details: () => [...queryKeys.subjects.all, 'detail'] as const,
-    detail: (id: string) => [...queryKeys.subjects.details(), id] as const,
+    list: (filters?: any) => ['subjects', 'list', filters] as const,
+    detail: (id: string) => ['subjects', 'detail', id] as const,
+    lists: () => ['subjects', 'list'] as const,
   },
 
-  // Classrooms
+  // Classrooms - Simplified structure
   classrooms: {
     all: ['classrooms'] as const,
-    lists: () => [...queryKeys.classrooms.all, 'list'] as const,
-    list: (filters?: any) => [...queryKeys.classrooms.lists(), filters] as const,
-    details: () => [...queryKeys.classrooms.all, 'detail'] as const,
-    detail: (id: string) => [...queryKeys.classrooms.details(), id] as const,
-    roster: (id: string) => [...queryKeys.classrooms.all, 'roster', id] as const,
+    list: (filters?: any) => ['classrooms', 'list', filters] as const,
+    detail: (id: string) => ['classrooms', 'detail', id] as const,
+    roster: (id: string) => ['classrooms', 'roster', id] as const,
+    lists: () => ['classrooms', 'list'] as const,
   },
 
-  // Rooms
+  // Rooms - Simplified structure
   rooms: {
     all: ['rooms'] as const,
-    lists: () => [...queryKeys.rooms.all, 'list'] as const,
-    list: (filters?: any) => [...queryKeys.rooms.lists(), filters] as const,
-    details: () => [...queryKeys.rooms.all, 'detail'] as const,
-    detail: (id: string) => [...queryKeys.rooms.details(), id] as const,
-    usage: (id: string) => [...queryKeys.rooms.all, 'usage', id] as const,
+    list: (filters?: any) => ['rooms', 'list', filters] as const,
+    detail: (id: string) => ['rooms', 'detail', id] as const,
+    usage: (id: string) => ['rooms', 'usage', id] as const,
+    lists: () => ['rooms', 'list'] as const,
   },
 
-  // Students
+  // Teachers - Simplified structure
+  teachers: {
+    all: ['teachers'] as const,
+    list: (filters?: any) => ['teachers', 'list', filters] as const,
+    detail: (id: string) => ['teachers', 'detail', id] as const,
+    lists: () => ['teachers', 'list'] as const,
+  },
+
+  // Students - Simplified structure
   students: {
     all: ['students'] as const,
-    lists: () => [...queryKeys.students.all, 'list'] as const,
-    list: (filters?: any) => [...queryKeys.students.lists(), filters] as const,
-    details: () => [...queryKeys.students.all, 'detail'] as const,
-    detail: (id: string) => [...queryKeys.students.details(), id] as const,
-    enrollments: (studentId: string) => [...queryKeys.students.all, 'enrollments', studentId] as const,
-    nextId: (schoolId: string) => [...queryKeys.students.all, 'nextId', schoolId] as const,
+    list: (filters?: any) => ['students', 'list', filters] as const,
+    detail: (id: string) => ['students', 'detail', id] as const,
+    enrollments: (studentId: string) => ['students', 'enrollments', studentId] as const,
+    nextId: (schoolId: string) => ['students', 'nextId', schoolId] as const,
+    lists: () => ['students', 'list'] as const,
   },
 
-  // Enrollments
+  // Enrollments - Simplified structure
   enrollments: {
     all: ['enrollments'] as const,
-    lists: () => [...queryKeys.enrollments.all, 'list'] as const,
-    list: (filters?: any) => [...queryKeys.enrollments.lists(), filters] as const,
-    details: () => [...queryKeys.enrollments.all, 'detail'] as const,
-    detail: (id: string) => [...queryKeys.enrollments.details(), id] as const,
+    list: (filters?: any) => ['enrollments', 'list', filters] as const,
+    detail: (id: string) => ['enrollments', 'detail', id] as const,
+    lists: () => ['enrollments', 'list'] as const,
   },
 };

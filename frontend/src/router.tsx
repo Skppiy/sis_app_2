@@ -82,6 +82,13 @@ const roomsRoute = new Route({
   component: React.lazy(() => import('@/features/facilities/pages/RoomsPage')),
 });
 
+// Teachers route (child of app layout)
+const teachersRoute = new Route({
+  getParentRoute: () => appLayoutRoute,
+  path: '/teachers',
+  component: React.lazy(() => import('@/features/academics/pages/TeachersPage')),
+});
+
 // Students route (child of app layout)
 const studentsRoute = new Route({
   getParentRoute: () => appLayoutRoute,
@@ -109,15 +116,19 @@ export const routeTree = rootRoute.addChildren([
     subjectsRoute,
     classroomsRoute,
     roomsRoute, // Added rooms route
+    teachersRoute, // Added teachers route
     studentsRoute
   ])
 ]);
 
-// Create router
-export const router = new Router({ 
+// Create router instance
+const routerInstance = new Router({ 
   routeTree,
   defaultPreload: 'intent',
 });
+
+// Export as named export for HMR compatibility
+export const router = routerInstance;
 
 // Augment the Router type
 declare module '@tanstack/react-router' {

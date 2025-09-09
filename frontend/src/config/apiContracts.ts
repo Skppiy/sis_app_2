@@ -70,6 +70,22 @@ export type FieldDef = {
         { name: 'grade_level', label: 'Grade Level', type: 'string' }
       ]
     } as EntityContract,
+
+    teachers: {
+      path: '/admin/teachers',
+      primaryKey: 'id',
+      listSelect: ['first_name', 'last_name', 'grade_level', 'homeroom_name', 'is_specialist'],
+      formFields: [
+        { name: 'first_name', label: 'First Name', type: 'string', required: true },
+        { name: 'last_name', label: 'Last Name', type: 'string', required: true },
+        { name: 'email', label: 'Email', type: 'string' },
+        { name: 'grade_level', label: 'Grade Level', type: 'string' },
+        { name: 'homeroom_id', label: 'Homeroom', type: 'string' },
+        { name: 'is_specialist', label: 'Specialist Teacher', type: 'boolean' },
+        { name: 'specialist_subject', label: 'Specialist Subject', type: 'string' },
+        { name: 'specialist_room_id', label: 'Specialist Room', type: 'string' }
+      ]
+    } as EntityContract,
   };
   
   export type Contracts = typeof contracts;

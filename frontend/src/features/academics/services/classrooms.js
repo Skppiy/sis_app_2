@@ -1,6 +1,6 @@
 // src/features/academics/services/classrooms.ts
-import { apiFetch } from "@api/requestHelper";
-import { ClassroomSchema } from "@schemas/academics";
+import { apiFetch } from "@/api/requestHelper";
+import { ClassroomSchema } from "@/schemas/academics";
 import { z } from "zod";
 const ClassroomsListSchema = z.array(ClassroomSchema);
 export async function listClassrooms(params) {

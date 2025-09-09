@@ -20,14 +20,31 @@ import {
   MenuItem,
   FormControlLabel,
   Switch,
-  CircularProgress
+  CircularProgress,
+  TextField,
+  InputAdornment,
+  Card,
+  CardContent,
+  CardActions,
+  Grid,
+  Badge,
+  alpha,
+  useTheme
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Info as InfoIcon,
-  FilterList as FilterIcon
+  FilterList as FilterIcon,
+  ViewModule as CardViewIcon,
+  CalendarMonth as CalendarViewIcon,
+  Room as RoomIcon,
+  Search as SearchIcon,
+  People as CapacityIcon,
+  Computer as ComputerIcon,
+  Tv as ProjectorIcon,
+  CheckCircle as CheckIcon
 } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridActionsCellItem, GridRowParams, GridRenderCellParams } from '@mui/x-data-grid';
 import { useQuery } from '@tanstack/react-query';
@@ -143,6 +160,11 @@ function UsageCell({ roomId }: { roomId: string }) {
 
 export default function RoomsPage() {
   const { user } = useAuth();
+  const theme = useTheme();
+  
+  // View and search state
+  const [viewMode, setViewMode] = React.useState<'calendar' | 'management'>('management');
+  const [searchQuery, setSearchQuery] = React.useState('');
   
   // Modal states
   const [formOpen, setFormOpen] = React.useState(false);
@@ -186,6 +208,19 @@ export default function RoomsPage() {
   }, [filters, user?.school_id]);
 
   const rooms = roomsQuery.data || [];
+
+  // Filter and search rooms
+  const filteredRooms = React.useMemo(() => {
+    return rooms.filter(room => {
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch = !searchQuery || 
+        room.name.toLowerCase().includes(searchLower) ||
+        room.room_code?.toLowerCase().includes(searchLower) ||
+        room.room_type.toLowerCase().includes(searchLower);
+      
+      return matchesSearch;
+    });
+  }, [rooms, searchQuery]);
 
   const handleCreateRoom = () => {
     setSelectedRoom(null);
@@ -368,17 +403,55 @@ export default function RoomsPage() {
   ];
 
   return (
-    <Paper sx={{ p: 3 }}>
-      <Stack spacing={3}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h5" component="h1">
-            Room Management
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+    <Box>
+      {/* Enhanced Header Section */}
+      <Paper 
+        sx={{ 
+          p: 3, 
+          mb: 3,
+          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.02)} 0%, ${alpha(theme.palette.primary.light, 0.05)} 100%)`,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+        }} 
+      >
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+          <Box>
+            <Typography variant="h4" component="h1" sx={{ fontWeight: 600, mb: 1 }}>
+              Room Management
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Manage facilities with dual-mode interface: scheduling calendar and room administration • {filteredRooms.length} rooms
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={2}>
+            <Stack direction="row" spacing={1} sx={{ 
+              bgcolor: alpha(theme.palette.primary.main, 0.04),
+              borderRadius: 2,
+              p: 0.5,
+            }}>
+              <Button
+                variant={viewMode === 'calendar' ? "contained" : "text"}
+                startIcon={<CalendarViewIcon />}
+                onClick={() => setViewMode('calendar')}
+                size="small"
+                sx={{ minWidth: 'auto' }}
+              >
+                Calendar
+              </Button>
+              <Button
+                variant={viewMode === 'management' ? "contained" : "text"}
+                startIcon={<CardViewIcon />}
+                onClick={() => setViewMode('management')}
+                size="small"
+                sx={{ minWidth: 'auto' }}
+              >
+                Rooms
+              </Button>
+            </Stack>
             <Button
               startIcon={<FilterIcon />}
               onClick={() => setFiltersOpen(!filtersOpen)}
               variant="outlined"
+              size="large"
             >
               Filters
             </Button>
@@ -386,11 +459,39 @@ export default function RoomsPage() {
               startIcon={<AddIcon />}
               onClick={handleCreateRoom}
               variant="contained"
+              size="large"
+              sx={{ 
+                borderRadius: 2,
+                px: 3,
+              }}
             >
               Add Room
             </Button>
-          </Box>
-        </Box>
+          </Stack>
+        </Stack>
+
+        {/* Search Bar */}
+        <TextField
+          fullWidth
+          placeholder="Search rooms by name, code, or type..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ color: theme.palette.text.secondary }} />
+              </InputAdornment>
+            ),
+          }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 2,
+            },
+          }}
+        />
+      </Paper>
+
+      <Stack spacing={3}>
 
         {/* Filters Panel */}
         {filtersOpen && (
@@ -445,17 +546,223 @@ export default function RoomsPage() {
           </Paper>
         )}
 
-        <DataGrid
-          rows={rooms}
-          columns={columns}
-          loading={roomsQuery.isLoading}
-          autoHeight
-          disableRowSelectionOnClick
-          pageSizeOptions={[10, 25, 50]}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 25 } }
-          }}
-        />
+        {/* Content - Conditional based on view mode */}
+        {viewMode === 'calendar' ? (
+          /* Calendar View for Booking */
+          <Paper sx={{ p: 4, textAlign: 'center', minHeight: 400 }}>
+            <CalendarViewIcon sx={{ fontSize: 80, color: theme.palette.text.disabled, mb: 2 }} />
+            <Typography variant="h5" color="text.secondary" gutterBottom>
+              Calendar View Coming Soon
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
+              This view will display an interactive calendar for room booking and scheduling. 
+              You can view availability, make reservations, and manage room assignments by time slots.
+            </Typography>
+            <Box sx={{ mt: 3 }}>
+              <Button 
+                variant="outlined" 
+                onClick={() => setViewMode('management')}
+                startIcon={<CardViewIcon />}
+              >
+                View Rooms Instead
+              </Button>
+            </Box>
+          </Paper>
+        ) : (
+          /* Professional Card Grid for Room Management */
+          <Box>
+            {roomsQuery.isLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Grid container spacing={3}>
+                {filteredRooms.map((room) => (
+                  <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={room.id}>
+                    <Card 
+                      sx={{
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        position: 'relative',
+                        backgroundColor: '#ffffff',
+                        border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                        borderRadius: 3,
+                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          transform: 'translateY(-4px)',
+                          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)',
+                          borderColor: theme.palette.primary.main,
+                        },
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: 4,
+                          background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
+                          borderRadius: '12px 12px 0 0',
+                        },
+                      }}
+                    >
+                      <CardContent sx={{ flex: 1, p: 3 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                              {room.name}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                              Code: {room.room_code || 'N/A'}
+                            </Typography>
+                            <Chip 
+                              label={room.room_type.replace('_', ' ')} 
+                              size="small"
+                              sx={{
+                                background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
+                                color: 'white',
+                                fontWeight: 500,
+                                fontSize: '0.7rem',
+                              }}
+                            />
+                          </Box>
+                          <UsageCell roomId={room.id} />
+                        </Stack>
+
+                        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                          <CapacityIcon sx={{ fontSize: 18, color: theme.palette.text.secondary }} />
+                          <Typography variant="body2" color="text.secondary">
+                            <strong>Capacity:</strong> {room.capacity} people
+                          </Typography>
+                        </Stack>
+
+                        <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 0.5 }}>
+                          {room.has_projector && (
+                            <Chip
+                              icon={<ProjectorIcon />}
+                              label="Projector"
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                            />
+                          )}
+                          {room.has_computers && (
+                            <Chip
+                              icon={<ComputerIcon />}
+                              label="Computers"
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                            />
+                          )}
+                          {room.has_smartboard && (
+                            <Chip
+                              icon={<CheckIcon />}
+                              label="Smartboard"
+                              size="small"
+                              color="info"
+                              variant="outlined"
+                            />
+                          )}
+                          {room.is_bookable && (
+                            <Chip
+                              label="Bookable"
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                            />
+                          )}
+                        </Stack>
+
+                        {(room as any).description && (
+                          <Typography variant="body2" color="text.secondary" sx={{ 
+                            fontSize: '0.85rem',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            '-webkit-line-clamp': 2,
+                            '-webkit-box-orient': 'vertical',
+                          }}>
+                            {(room as any).description}
+                          </Typography>
+                        )}
+                      </CardContent>
+                      
+                      <CardActions sx={{ px: 3, pb: 2, pt: 0 }}>
+                        <Stack direction="row" spacing={1} sx={{ width: '100%', justifyContent: 'flex-end' }}>
+                          <Tooltip title="View Usage">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleViewUsage(room)}
+                              sx={{ 
+                                color: theme.palette.info.main,
+                                '&:hover': { bgcolor: alpha(theme.palette.info.main, 0.1) }
+                              }}
+                            >
+                              <InfoIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Edit Room">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleEditRoom(room)}
+                              sx={{ 
+                                color: theme.palette.primary.main,
+                                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
+                              }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete Room">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteRoom(room)}
+                              sx={{ 
+                                color: theme.palette.error.main,
+                                '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </CardActions>
+                    </Card>
+                  </Grid>
+                ))}
+                
+                {/* Empty State */}
+                {filteredRooms.length === 0 && !roomsQuery.isLoading && (
+                  <Grid size={{ xs: 12 }}>
+                    <Box sx={{ textAlign: 'center', py: 6 }}>
+                      <RoomIcon sx={{ fontSize: 80, color: theme.palette.text.disabled, mb: 2 }} />
+                      <Typography variant="h5" color="text.secondary" gutterBottom>
+                        No rooms found
+                      </Typography>
+                      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                        {searchQuery 
+                          ? `No rooms match "${searchQuery}"`
+                          : 'No rooms have been added yet'
+                        }
+                      </Typography>
+                      {!searchQuery && (
+                        <Button
+                          variant="contained"
+                          startIcon={<AddIcon />}
+                          onClick={handleCreateRoom}
+                        >
+                          Add First Room
+                        </Button>
+                      )}
+                    </Box>
+                  </Grid>
+                )}
+              </Grid>
+            )}
+          </Box>
+        )}
 
         {/* Room Form Dialog */}
         <RoomFormDialog
@@ -511,6 +818,6 @@ export default function RoomsPage() {
           </DialogActions>
         </Dialog>
       </Stack>
-    </Paper>
+    </Box>
   );
 }

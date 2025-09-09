@@ -223,8 +223,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 }
 
-// Hook to use auth context
-export function useAuth(): AuthContextType {
+// Hook to use auth context - Named export for HMR compatibility
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');

@@ -165,11 +165,11 @@ export function AuthProvider({ children }) {
     };
     return (_jsx(AuthContext.Provider, { value: value, children: children }));
 }
-// Hook to use auth context
-export function useAuth() {
+// Hook to use auth context - Named export for HMR compatibility
+export const useAuth = () => {
     const context = useContext(AuthContext);
     if (context === undefined) {
         throw new Error('useAuth must be used within an AuthProvider');
     }
     return context;
-}
+};
