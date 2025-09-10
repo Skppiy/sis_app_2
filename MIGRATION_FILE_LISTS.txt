@@ -1,0 +1,180 @@
+CRITICAL MIGRATION FILE LISTS
+=====================================
+
+PHASE 1: SAFE TO MOVE IMMEDIATELY (94 FILES)
+These files are NOT imported anywhere and can be moved to /dedupe safely:
+
+UNUSED JS FILES (61):
+- api/index.js
+- api/queryKeys.js  
+- api/requestHelper.js
+- auth/AuthContext.js
+- auth/ProtectedRoute.js
+- components/YearSelector.js
+- components/academic-years/AcademicYearCard.js
+- components/academic-years/index.js
+- components/modals/CrudModal.js
+- components/students/ActionButtons.js
+- components/students/BulkOperationsToolbar.js
+- components/students/ContactInfoDisplay.js
+- components/students/EnhancedEnrollmentManager.js
+- components/students/EnhancedStudentCard.js
+- components/students/EnrollmentStatus.js
+- components/students/SpecialNeedsIndicator.js
+- components/students/StatusBadge.js
+- components/students/StudentCard.js
+- components/students/StudentGrid.js
+- components/students/StudentServicesPanel.js
+- components/students/index.js
+- components/subjects/SubjectCard.js
+- components/subjects/index.js
+- components/tables/EntityGrid.js
+- config/apiContracts.js
+- config/env.js
+- contexts/SelectedYearContext.js
+- features/academics/services.js
+- features/academics/components/SubjectFormDialog.js
+- features/academics/components/TeacherFormDialog.js
+- features/academics/components/YearFormDialog.js
+- features/academics/hooks/useClassrooms.js
+- features/academics/hooks/useSubjects.js
+- features/academics/hooks/useTeachers.js
+- features/academics/hooks/useYears.js
+- features/academics/pages/ClassroomsPage.js
+- features/academics/pages/SubjectsPage.js
+- features/academics/pages/TeachersPage.js
+- features/academics/pages/YearsPage.js
+- features/academics/schemas/years.js
+- features/academics/services/classrooms.js
+- features/academics/services/subjects.js
+- features/academics/services/teachers.js
+- features/academics/services/years.js
+- features/enrollment/hooks/useStudents.js
+- features/enrollment/pages/StudentsPage.js
+- features/enrollment/services/students.js
+- features/facilities/components/RoomFormDialog.js
+- features/facilities/hooks/useRooms.js
+- features/facilities/pages/RoomsPage.js
+- features/facilities/services/rooms.js
+- layouts/AppShell.js
+- main.js
+- pages/Dashboard.js
+- pages/Login.js
+- router.js
+- schemas/academics.js
+- schemas/facilities.js
+- schemas/students.js
+- styles/theme.js
+- utils/performance.js
+
+UNUSED TS/TSX FILES (33):
+- api/index.ts
+- auth/ProtectedRoute.tsx
+- components/YearSelector.tsx
+- components/academic-years/AcademicYearCard.tsx
+- components/academic-years/index.ts
+- components/modals/CrudModal.tsx
+- components/students/ActionButtons.tsx
+- components/students/BulkOperationsToolbar.tsx
+- components/students/ContactInfoDisplay.tsx
+- components/students/EnhancedEnrollmentManager.tsx
+- components/students/EnhancedStudentCard.tsx
+- components/students/EnrollmentStatus.tsx
+- components/students/SpecialNeedsIndicator.tsx
+- components/students/StatusBadge.tsx
+- components/students/StudentCard.tsx
+- components/students/StudentGrid.tsx
+- components/students/StudentServicesPanel.tsx
+- components/students/index.ts
+- components/subjects/SubjectCard.tsx
+- components/subjects/index.ts
+- components/tables/EntityGrid.tsx
+- config/apiContracts.ts
+- contexts/SelectedYearContext.js
+- features/academics/components/YearFormDialog.tsx
+- features/academics/services.ts
+- features/academics/services/subjects.ts
+- features/academics/services/teachers.ts
+- features/academics/services/years.ts
+- features/facilities/components/RoomFormDialog.tsx
+- features/facilities/services/rooms.ts
+- main.tsx
+- router.tsx
+- utils/performance.tsx
+
+=====================================
+
+PHASE 2: CRITICAL FIXES NEEDED FIRST
+These files have import conflicts that must be resolved:
+
+CRITICAL IMPORT ISSUE:
+- features/academics/hooks/useTeachers.ts (line 8) 
+  Currently imports: } from '../services/teachers';
+  ISSUE: This resolves to teachers.js instead of teachers.ts
+  FIX NEEDED: Make import explicit or ensure TS resolution
+
+ROOT CAUSE FILES:
+1. features/academics/services/teachers.js (wrong version being imported)
+2. features/academics/services/teachers.ts (correct version with types)
+
+=====================================
+
+FILES CURRENTLY BEING USED (KEEP THESE):
+These are the 29 files actually being imported:
+
+ACTIVE TS FILES:
+- api/queryKeys.ts
+- api/requestHelper.ts
+- auth/AuthContext.tsx
+- config/env.ts
+- features/academics/hooks/useClassrooms.ts
+- features/academics/hooks/useSubjects.ts
+- features/academics/hooks/useTeachers.ts
+- features/academics/hooks/useYears.ts
+- features/academics/services/classrooms.ts
+- features/enrollment/hooks/useStudents.ts
+- features/enrollment/services/students.ts
+- features/facilities/hooks/useRooms.ts
+- schemas/academics.ts
+- schemas/facilities.ts
+- schemas/students.ts
+- styles/theme.ts
+
+ACTIVE TSX FILES:
+- features/academics/components/SubjectFormDialog.tsx
+- features/academics/components/TeacherFormDialog.tsx
+- features/academics/pages/ClassroomsPage.tsx
+- features/academics/pages/SubjectsPage.tsx
+- features/academics/pages/TeachersPage.tsx
+- features/academics/pages/YearsPage.tsx
+- features/enrollment/pages/StudentsPage.tsx
+- features/facilities/pages/RoomsPage.tsx
+- layouts/AppShell.tsx
+- pages/Dashboard.tsx
+- pages/Login.tsx
+
+MIXED USAGE (Need to investigate):
+- features/academics/schemas/years.ts
+- contexts/SelectedYearContext.tsx
+
+=====================================
+
+MIGRATION COMMAND REFERENCE:
+
+# Create dedupe structure
+mkdir -p frontend/dedupe/{api,auth,components,features,layouts,pages,schemas,styles,utils}
+
+# Phase 1: Move unused files (example)
+mv frontend/src/api/index.js frontend/dedupe/api/
+mv frontend/src/api/queryKeys.js frontend/dedupe/api/
+# ... continue for all unused files
+
+# Phase 2: Fix critical import
+# Edit features/academics/hooks/useTeachers.ts
+# Change: } from '../services/teachers';
+# To:     } from '../services/teachers.ts';
+
+# Verification commands
+npm run build
+npm run dev
+npx tsc --noEmit

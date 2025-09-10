@@ -1,0 +1,292 @@
+=== IMPORT ANALYSIS ===
+Analyzing 123 files for imports...
+
+=== RESOLVING ACTUAL FILE IMPORTS ===
+IMPORT: main.js -> styles/theme.ts (via @/styles/theme)
+IMPORT: main.js -> auth/AuthContext.tsx (via @auth/AuthContext)
+IMPORT: router.js -> pages/Login.tsx (via @/pages/Login)
+IMPORT: router.js -> pages/Dashboard.tsx (via @/pages/Dashboard)
+IMPORT: router.js -> layouts/AppShell.tsx (via @/layouts/AppShell)
+IMPORT: router.js -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: router.js -> features/academics/pages/YearsPage.tsx (via @/features/academics/pages/YearsPage)
+IMPORT: router.js -> features/academics/pages/SubjectsPage.tsx (via @/features/academics/pages/SubjectsPage)
+IMPORT: router.js -> features/academics/pages/ClassroomsPage.tsx (via @/features/academics/pages/ClassroomsPage)
+IMPORT: router.js -> features/facilities/pages/RoomsPage.tsx (via @/features/facilities/pages/RoomsPage)
+IMPORT: router.js -> features/academics/pages/TeachersPage.tsx (via @/features/academics/pages/TeachersPage)
+IMPORT: router.js -> features/enrollment/pages/StudentsPage.tsx (via @/features/enrollment/pages/StudentsPage)
+IMPORT: auth\AuthContext.js -> config/env.ts (via @/config/env)
+IMPORT: auth\ProtectedRoute.js -> auth/AuthContext.tsx (via @auth/AuthContext)
+IMPORT: components\YearSelector.js -> contexts/SelectedYearContext.tsx (via @/contexts/SelectedYearContext)
+IMPORT: components\YearSelector.js -> features/academics/hooks/useYears.ts (via @/features/academics/hooks/useYears)
+IMPORT: components\students\EnhancedEnrollmentManager.js -> schemas/students.ts (via @/schemas/students)
+IMPORT: components\students\EnhancedStudentCard.js -> schemas/students.ts (via @/schemas/students)
+IMPORT: components\students\StudentCard.js -> schemas/students.ts (via @/schemas/students)
+IMPORT: components\students\StudentGrid.js -> schemas/students.ts (via @/schemas/students)
+IMPORT: components\students\StudentGrid.js -> features/enrollment/hooks/useStudents.ts (via @/features/enrollment/hooks/useStudents)
+IMPORT: contexts\SelectedYearContext.js -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\academics\services.js -> api/requestHelper.ts (via @api/requestHelper)
+IMPORT: features\academics\components\SubjectFormDialog.js -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\components\TeacherFormDialog.js -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\components\TeacherFormDialog.js -> features/facilities/hooks/useRooms.ts (via @/features/facilities/hooks/useRooms)
+IMPORT: features\academics\components\TeacherFormDialog.js -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\academics\hooks\useClassrooms.js -> api/queryKeys.ts (via @/api/queryKeys)
+IMPORT: features\academics\hooks\useSubjects.js -> api/queryKeys.ts (via @/api/queryKeys)
+IMPORT: features\academics\hooks\useTeachers.js -> api/queryKeys.ts (via @/api/queryKeys)
+IMPORT: features\academics\hooks\useYears.js -> api/queryKeys.ts (via @/api/queryKeys)
+IMPORT: features\academics\pages\ClassroomsPage.js -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\academics\pages\ClassroomsPage.js -> features/academics/hooks/useClassrooms.ts (via @/features/academics/hooks/useClassrooms)
+IMPORT: features\academics\pages\ClassroomsPage.js -> features/academics/hooks/useSubjects.ts (via @/features/academics/hooks/useSubjects)
+IMPORT: features\academics\pages\ClassroomsPage.js -> features/academics/hooks/useYears.ts (via @/features/academics/hooks/useYears)
+IMPORT: features\academics\pages\ClassroomsPage.js -> features/facilities/hooks/useRooms.ts (via @/features/facilities/hooks/useRooms)
+IMPORT: features\academics\pages\ClassroomsPage.js -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\pages\SubjectsPage.js -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\academics\pages\SubjectsPage.js -> features/academics/hooks/useSubjects.ts (via @/features/academics/hooks/useSubjects)
+IMPORT: features\academics\pages\SubjectsPage.js -> features/academics/components/SubjectFormDialog.tsx (via @/features/academics/components/SubjectFormDialog)
+IMPORT: features\academics\pages\TeachersPage.js -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\academics\pages\TeachersPage.js -> features/academics/hooks/useTeachers.ts (via @/features/academics/hooks/useTeachers)
+IMPORT: features\academics\pages\TeachersPage.js -> features/academics/components/TeacherFormDialog.tsx (via @/features/academics/components/TeacherFormDialog)
+IMPORT: features\academics\pages\TeachersPage.js -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\services\classrooms.js -> api/requestHelper.ts (via @/api/requestHelper)
+IMPORT: features\academics\services\classrooms.js -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\services\subjects.js -> api/requestHelper.ts (via @api/requestHelper)
+IMPORT: features\academics\services\subjects.js -> schemas/academics.ts (via @schemas/academics)
+IMPORT: features\academics\services\teachers.js -> api/requestHelper.ts (via @/api/requestHelper)
+IMPORT: features\academics\services\teachers.js -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\services\years.js -> api/requestHelper.ts (via @/api/requestHelper)
+IMPORT: features\enrollment\hooks\useStudents.js -> api/queryKeys.ts (via @/api/queryKeys)
+IMPORT: features\enrollment\pages\StudentsPage.js -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\enrollment\pages\StudentsPage.js -> features/enrollment/hooks/useStudents.ts (via @/features/enrollment/hooks/useStudents)
+IMPORT: features\enrollment\pages\StudentsPage.js -> features/academics/hooks/useClassrooms.ts (via @/features/academics/hooks/useClassrooms)
+IMPORT: features\enrollment\pages\StudentsPage.js -> features/academics/hooks/useYears.ts (via @/features/academics/hooks/useYears)
+IMPORT: features\enrollment\pages\StudentsPage.js -> schemas/students.ts (via @/schemas/students)
+IMPORT: features\enrollment\services\students.js -> api/requestHelper.ts (via @/api/requestHelper)
+IMPORT: features\enrollment\services\students.js -> schemas/students.ts (via @/schemas/students)
+IMPORT: features\facilities\components\RoomFormDialog.js -> schemas/facilities.ts (via @/schemas/facilities)
+IMPORT: features\facilities\hooks\useRooms.js -> api/queryKeys.ts (via @/api/queryKeys)
+IMPORT: features\facilities\pages\RoomsPage.js -> schemas/facilities.ts (via @/schemas/facilities)
+IMPORT: features\facilities\pages\RoomsPage.js -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\facilities\pages\RoomsPage.js -> api/requestHelper.ts (via @/api/requestHelper)
+IMPORT: features\facilities\services\rooms.js -> api/requestHelper.ts (via @/api/requestHelper)
+IMPORT: features\facilities\services\rooms.js -> schemas/facilities.ts (via @/schemas/facilities)
+IMPORT: layouts\AppShell.js -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: pages\Dashboard.js -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: pages\Dashboard.js -> features/academics/hooks/useTeachers.ts (via @/features/academics/hooks/useTeachers)
+IMPORT: pages\Dashboard.js -> features/enrollment/hooks/useStudents.ts (via @/features/enrollment/hooks/useStudents)
+IMPORT: pages\Dashboard.js -> features/academics/services/classrooms.ts (via @/features/academics/services/classrooms)
+IMPORT: pages\Login.js -> auth/AuthContext.tsx (via @auth/AuthContext)
+IMPORT: features\academics\services.ts -> api/requestHelper.ts (via @api/requestHelper)
+IMPORT: features\academics\hooks\useClassrooms.ts -> schemas/academics.ts (via @schemas/academics)
+IMPORT: features\academics\hooks\useClassrooms.ts -> api/queryKeys.ts (via @/api/queryKeys)
+IMPORT: features\academics\hooks\useSubjects.ts -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\hooks\useSubjects.ts -> api/queryKeys.ts (via @/api/queryKeys)
+IMPORT: features\academics\hooks\useTeachers.ts -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\hooks\useTeachers.ts -> api/queryKeys.ts (via @/api/queryKeys)
+IMPORT: features\academics\hooks\useYears.ts -> api/queryKeys.ts (via @/api/queryKeys)
+IMPORT: features\academics\services\classrooms.ts -> api/requestHelper.ts (via @/api/requestHelper)
+IMPORT: features\academics\services\subjects.ts -> api/requestHelper.ts (via @api/requestHelper)
+IMPORT: features\academics\services\subjects.ts -> schemas/academics.ts (via @schemas/academics)
+IMPORT: features\academics\services\teachers.ts -> api/requestHelper.ts (via @/api/requestHelper)
+IMPORT: features\academics\services\teachers.ts -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\services\years.ts -> api/requestHelper.ts (via @/api/requestHelper)
+IMPORT: features\enrollment\hooks\useStudents.ts -> schemas/students.ts (via @/schemas/students)
+IMPORT: features\enrollment\hooks\useStudents.ts -> api/queryKeys.ts (via @/api/queryKeys)
+IMPORT: features\enrollment\services\students.ts -> api/requestHelper.ts (via @/api/requestHelper)
+IMPORT: features\facilities\hooks\useRooms.ts -> schemas/facilities.ts (via @/schemas/facilities)
+IMPORT: features\facilities\hooks\useRooms.ts -> api/queryKeys.ts (via @/api/queryKeys)
+IMPORT: features\facilities\services\rooms.ts -> api/requestHelper.ts (via @/api/requestHelper)
+IMPORT: features\facilities\services\rooms.ts -> schemas/facilities.ts (via @/schemas/facilities)
+IMPORT: main.tsx -> styles/theme.ts (via @/styles/theme)
+IMPORT: main.tsx -> auth/AuthContext.tsx (via @auth/AuthContext)
+IMPORT: router.tsx -> pages/Login.tsx (via @/pages/Login)
+IMPORT: router.tsx -> pages/Dashboard.tsx (via @/pages/Dashboard)
+IMPORT: router.tsx -> layouts/AppShell.tsx (via @/layouts/AppShell)
+IMPORT: router.tsx -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: router.tsx -> features/academics/pages/YearsPage.tsx (via @/features/academics/pages/YearsPage)
+IMPORT: router.tsx -> features/academics/pages/SubjectsPage.tsx (via @/features/academics/pages/SubjectsPage)
+IMPORT: router.tsx -> features/academics/pages/ClassroomsPage.tsx (via @/features/academics/pages/ClassroomsPage)
+IMPORT: router.tsx -> features/facilities/pages/RoomsPage.tsx (via @/features/facilities/pages/RoomsPage)
+IMPORT: router.tsx -> features/academics/pages/TeachersPage.tsx (via @/features/academics/pages/TeachersPage)
+IMPORT: router.tsx -> features/enrollment/pages/StudentsPage.tsx (via @/features/enrollment/pages/StudentsPage)
+IMPORT: auth\AuthContext.tsx -> config/env.ts (via @/config/env)
+IMPORT: auth\ProtectedRoute.tsx -> auth/AuthContext.tsx (via @auth/AuthContext)
+IMPORT: components\YearSelector.tsx -> contexts/SelectedYearContext.tsx (via @/contexts/SelectedYearContext)
+IMPORT: components\YearSelector.tsx -> features/academics/hooks/useYears.ts (via @/features/academics/hooks/useYears)
+IMPORT: components\academic-years\AcademicYearCard.tsx -> features/academics/schemas/years.ts (via @/features/academics/schemas/years)
+IMPORT: components\students\BulkOperationsToolbar.tsx -> schemas/students.ts (via @/schemas/students)
+IMPORT: components\students\EnhancedEnrollmentManager.tsx -> schemas/students.ts (via @/schemas/students)
+IMPORT: components\students\EnhancedStudentCard.tsx -> schemas/students.ts (via @/schemas/students)
+IMPORT: components\students\EnrollmentStatus.tsx -> schemas/students.ts (via @/schemas/students)
+IMPORT: components\students\StudentCard.tsx -> schemas/students.ts (via @/schemas/students)
+IMPORT: components\students\StudentGrid.tsx -> schemas/students.ts (via @/schemas/students)
+IMPORT: components\students\StudentGrid.tsx -> features/enrollment/hooks/useStudents.ts (via @/features/enrollment/hooks/useStudents)
+IMPORT: components\subjects\SubjectCard.tsx -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: contexts\SelectedYearContext.tsx -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\academics\components\SubjectFormDialog.tsx -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\components\TeacherFormDialog.tsx -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\components\TeacherFormDialog.tsx -> features/facilities/hooks/useRooms.ts (via @/features/facilities/hooks/useRooms)
+IMPORT: features\academics\components\TeacherFormDialog.tsx -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\academics\pages\ClassroomsPage.tsx -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\academics\pages\ClassroomsPage.tsx -> features/academics/hooks/useSubjects.ts (via @/features/academics/hooks/useSubjects)
+IMPORT: features\academics\pages\ClassroomsPage.tsx -> features/academics/hooks/useYears.ts (via @/features/academics/hooks/useYears)
+IMPORT: features\academics\pages\ClassroomsPage.tsx -> features/facilities/hooks/useRooms.ts (via @/features/facilities/hooks/useRooms)
+IMPORT: features\academics\pages\ClassroomsPage.tsx -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\pages\SubjectsPage.tsx -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\academics\pages\SubjectsPage.tsx -> features/academics/components/SubjectFormDialog.tsx (via @/features/academics/components/SubjectFormDialog)
+IMPORT: features\academics\pages\SubjectsPage.tsx -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\pages\TeachersPage.tsx -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\academics\pages\TeachersPage.tsx -> features/academics/components/TeacherFormDialog.tsx (via @/features/academics/components/TeacherFormDialog)
+IMPORT: features\academics\pages\TeachersPage.tsx -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\academics\pages\TeachersPage.tsx -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: features\enrollment\pages\StudentsPage.tsx -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\enrollment\pages\StudentsPage.tsx -> features/academics/hooks/useClassrooms.ts (via @/features/academics/hooks/useClassrooms)
+IMPORT: features\enrollment\pages\StudentsPage.tsx -> features/academics/hooks/useYears.ts (via @/features/academics/hooks/useYears)
+IMPORT: features\facilities\components\RoomFormDialog.tsx -> schemas/facilities.ts (via @/schemas/facilities)
+IMPORT: features\facilities\pages\RoomsPage.tsx -> schemas/facilities.ts (via @/schemas/facilities)
+IMPORT: features\facilities\pages\RoomsPage.tsx -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: features\facilities\pages\RoomsPage.tsx -> api/requestHelper.ts (via @/api/requestHelper)
+IMPORT: layouts\AppShell.tsx -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: pages\Dashboard.tsx -> auth/AuthContext.tsx (via @/auth/AuthContext)
+IMPORT: pages\Dashboard.tsx -> features/academics/hooks/useTeachers.ts (via @/features/academics/hooks/useTeachers)
+IMPORT: pages\Dashboard.tsx -> features/enrollment/hooks/useStudents.ts (via @/features/enrollment/hooks/useStudents)
+IMPORT: pages\Dashboard.tsx -> features/enrollment/services/students.ts (via @/features/enrollment/services/students)
+IMPORT: pages\Dashboard.tsx -> features/academics/services/classrooms.ts (via @/features/academics/services/classrooms)
+IMPORT: pages\Dashboard.tsx -> schemas/academics.ts (via @/schemas/academics)
+IMPORT: pages\Dashboard.tsx -> schemas/students.ts (via @/schemas/students)
+IMPORT: pages\Login.tsx -> auth/AuthContext.tsx (via @auth/AuthContext)
+
+=== SUMMARY ===
+Total files that are actually imported: 29
+Files that exist but are NOT imported: 94
+
+=== FILES NOT BEING IMPORTED ===
+UNUSED: api/index.js
+UNUSED: api/index.ts
+UNUSED: api/queryKeys.js
+UNUSED: api/requestHelper.js
+UNUSED: auth/AuthContext.js
+UNUSED: auth/ProtectedRoute.js
+UNUSED: auth/ProtectedRoute.tsx
+UNUSED: components/YearSelector.js
+UNUSED: components/YearSelector.tsx
+UNUSED: components/academic-years/AcademicYearCard.js
+UNUSED: components/academic-years/AcademicYearCard.tsx
+UNUSED: components/academic-years/index.js
+UNUSED: components/academic-years/index.ts
+UNUSED: components/modals/CrudModal.js
+UNUSED: components/modals/CrudModal.tsx
+UNUSED: components/students/ActionButtons.js
+UNUSED: components/students/ActionButtons.tsx
+UNUSED: components/students/BulkOperationsToolbar.js
+UNUSED: components/students/BulkOperationsToolbar.tsx
+UNUSED: components/students/ContactInfoDisplay.js
+UNUSED: components/students/ContactInfoDisplay.tsx
+UNUSED: components/students/EnhancedEnrollmentManager.js
+UNUSED: components/students/EnhancedEnrollmentManager.tsx
+UNUSED: components/students/EnhancedStudentCard.js
+UNUSED: components/students/EnhancedStudentCard.tsx
+UNUSED: components/students/EnrollmentStatus.js
+UNUSED: components/students/EnrollmentStatus.tsx
+UNUSED: components/students/SpecialNeedsIndicator.js
+UNUSED: components/students/SpecialNeedsIndicator.tsx
+UNUSED: components/students/StatusBadge.js
+UNUSED: components/students/StatusBadge.tsx
+UNUSED: components/students/StudentCard.js
+UNUSED: components/students/StudentCard.tsx
+UNUSED: components/students/StudentGrid.js
+UNUSED: components/students/StudentGrid.tsx
+UNUSED: components/students/StudentServicesPanel.js
+UNUSED: components/students/StudentServicesPanel.tsx
+UNUSED: components/students/index.js
+UNUSED: components/students/index.ts
+UNUSED: components/subjects/SubjectCard.js
+UNUSED: components/subjects/SubjectCard.tsx
+UNUSED: components/subjects/index.js
+UNUSED: components/subjects/index.ts
+UNUSED: components/tables/EntityGrid.js
+UNUSED: components/tables/EntityGrid.tsx
+UNUSED: config/apiContracts.js
+UNUSED: config/apiContracts.ts
+UNUSED: config/env.js
+UNUSED: contexts/SelectedYearContext.js
+UNUSED: features/academics/components/SubjectFormDialog.js
+UNUSED: features/academics/components/TeacherFormDialog.js
+UNUSED: features/academics/components/YearFormDialog.js
+UNUSED: features/academics/components/YearFormDialog.tsx
+UNUSED: features/academics/hooks/useClassrooms.js
+UNUSED: features/academics/hooks/useSubjects.js
+UNUSED: features/academics/hooks/useTeachers.js
+UNUSED: features/academics/hooks/useYears.js
+UNUSED: features/academics/pages/ClassroomsPage.js
+UNUSED: features/academics/pages/SubjectsPage.js
+UNUSED: features/academics/pages/TeachersPage.js
+UNUSED: features/academics/pages/YearsPage.js
+UNUSED: features/academics/schemas/years.js
+UNUSED: features/academics/services.js
+UNUSED: features/academics/services.ts
+UNUSED: features/academics/services/classrooms.js
+UNUSED: features/academics/services/subjects.js
+UNUSED: features/academics/services/subjects.ts
+UNUSED: features/academics/services/teachers.js
+UNUSED: features/academics/services/teachers.ts
+UNUSED: features/academics/services/years.js
+UNUSED: features/academics/services/years.ts
+UNUSED: features/enrollment/hooks/useStudents.js
+UNUSED: features/enrollment/pages/StudentsPage.js
+UNUSED: features/enrollment/services/students.js
+UNUSED: features/facilities/components/RoomFormDialog.js
+UNUSED: features/facilities/components/RoomFormDialog.tsx
+UNUSED: features/facilities/hooks/useRooms.js
+UNUSED: features/facilities/pages/RoomsPage.js
+UNUSED: features/facilities/services/rooms.js
+UNUSED: features/facilities/services/rooms.ts
+UNUSED: layouts/AppShell.js
+UNUSED: main.js
+UNUSED: main.tsx
+UNUSED: pages/Dashboard.js
+UNUSED: pages/Login.js
+UNUSED: router.js
+UNUSED: router.tsx
+UNUSED: schemas/academics.js
+UNUSED: schemas/facilities.js
+UNUSED: schemas/students.js
+UNUSED: styles/theme.js
+UNUSED: utils/performance.js
+UNUSED: utils/performance.tsx
+UNUSED: vite-env.d.ts
+
+=== DUPLICATE ANALYSIS - WHICH VERSION IS IMPORTED? ===
+
+api/index.js vs api/index.ts:
+  JS imported: False
+  TS imported: False
+  Neither version imported
+
+api/queryKeys.js vs api/queryKeys.ts:
+  JS imported: False
+  TS imported: True
+  TS version being used
+
+api/requestHelper.js vs api/requestHelper.ts:
+  JS imported: False
+  TS imported: True
+  TS version being used
+
+features/academics/services/teachers.js vs features/academics/services/teachers.ts:
+  JS imported: False
+  TS imported: False
+  Neither version imported
+
+features/academics/services/subjects.js vs features/academics/services/subjects.ts:
+  JS imported: False
+  TS imported: False
+  Neither version imported
+
+features/academics/services/years.js vs features/academics/services/years.ts:
+  JS imported: False
+  TS imported: False
+  Neither version imported
+
+features/enrollment/services/students.js vs features/enrollment/services/students.ts:
+  JS imported: False
+  TS imported: True
+  TS version being used

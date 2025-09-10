@@ -1,1 +1,0 @@
-export { AcademicYearCard } from './AcademicYearCard';

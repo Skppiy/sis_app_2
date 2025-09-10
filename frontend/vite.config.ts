@@ -25,6 +25,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    strictPort: true, // Ensure it always uses port 5173, don't fallback to other ports
     open: false,
     hmr: {
       overlay: true,

@@ -1,11 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func, and_, or_
+from sqlalchemy.orm import joinedload, selectinload
 from typing import List
 from ..deps import get_db, require_admin, get_current_user
 from ..models.user import User
 from ..models.user_role import UserRole
 from ..models.school import School
+from ..models.classroom import Classroom
+from ..models.classroom_teacher_assignment import ClassroomTeacherAssignment
+from ..models.room import Room
+from ..models.enrollment import Enrollment
 from ..schemas.user import UserCreate, UserOut
 from ..security import get_password_hash
 
@@ -71,10 +76,13 @@ async def list_users(session: AsyncSession = Depends(get_db), _: any = Depends(r
 @router.get("/teachers")
 async def list_teachers(
     school_id: str | None = None,
+    academic_year_id: str | None = None,
     session: AsyncSession = Depends(get_db),
     _: any = Depends(require_admin),
 ):
-    # users having a teacher role at a given school (or any school if not provided)
+    """Enhanced teachers endpoint with complete classroom and room assignment data"""
+    
+    # Get users with teacher roles
     stmt = (
         select(User)
         .join(UserRole, UserRole.user_id == User.id)
@@ -83,11 +91,106 @@ async def list_teachers(
     if school_id:
         stmt = stmt.where(UserRole.school_id == school_id)
     stmt = stmt.order_by(User.last_name, User.first_name)
-    users = (await session.execute(stmt)).scalars().all()
-    return [
-        {"id": u.id, "first_name": u.first_name, "last_name": u.last_name, "email": u.email}
-        for u in users
-    ]
+    teachers = (await session.execute(stmt)).scalars().all()
+    
+    # Build enhanced teacher data with room assignments
+    teacher_data = []
+    
+    for teacher in teachers:
+        # Get teacher's classroom assignments for the given academic year
+        assignment_query = (
+            select(ClassroomTeacherAssignment)
+            .options(
+                joinedload(ClassroomTeacherAssignment.classroom)
+                .joinedload(Classroom.room),
+                joinedload(ClassroomTeacherAssignment.classroom)
+                .joinedload(Classroom.subject)
+            )
+            .where(
+                and_(
+                    ClassroomTeacherAssignment.teacher_user_id == teacher.id,
+                    ClassroomTeacherAssignment.is_active == True
+                )
+            )
+        )
+        
+        # Filter by academic year if provided
+        if academic_year_id:
+            assignment_query = assignment_query.join(Classroom).where(
+                Classroom.academic_year_id == academic_year_id
+            )
+        
+        assignments = (await session.execute(assignment_query)).scalars().all()
+        
+        # Analyze teacher assignments to determine type and room assignments
+        homeroom_assignment = None
+        specialist_assignment = None
+        total_students = 0
+        
+        for assignment in assignments:
+            classroom = assignment.classroom
+            
+            # Count students in this classroom
+            student_count_query = select(func.count(Enrollment.id)).where(
+                and_(
+                    Enrollment.classroom_id == classroom.id,
+                    Enrollment.is_active == True
+                )
+            )
+            student_count = (await session.execute(student_count_query)).scalar() or 0
+            total_students += student_count
+            
+            # Classify as homeroom or specialist based on role and classroom type
+            if (assignment.role_name.lower().find("homeroom") >= 0 or 
+                classroom.classroom_type == "HOMEROOM" or
+                assignment.role_name.lower().find("primary") >= 0):
+                homeroom_assignment = assignment
+            elif (classroom.subject and 
+                  (classroom.subject.requires_specialist or 
+                   assignment.role_name.lower().find("specialist") >= 0)):
+                specialist_assignment = assignment
+        
+        # Build teacher response data matching frontend TeacherSchema
+        teacher_response = {
+            "id": str(teacher.id),
+            "first_name": teacher.first_name,
+            "last_name": teacher.last_name,
+            "email": teacher.email,
+            "is_active": teacher.is_active,
+            "student_count": total_students,
+            "is_specialist": specialist_assignment is not None,
+        }
+        
+        # Add homeroom data if applicable
+        if homeroom_assignment:
+            classroom = homeroom_assignment.classroom
+            teacher_response.update({
+                "grade_level": classroom.grade_level,
+                "homeroom_id": str(classroom.room_id) if classroom.room else None,
+                "homeroom_name": classroom.room.name if classroom.room else None,
+            })
+        
+        # Add specialist data if applicable  
+        if specialist_assignment:
+            classroom = specialist_assignment.classroom
+            teacher_response.update({
+                "specialist_subject": classroom.subject.name if classroom.subject else None,
+                "specialist_room_id": str(classroom.room_id) if classroom.room else None,
+                "specialist_room_name": classroom.room.name if classroom.room else None,
+            })
+        
+        # Ensure all expected fields are present (with None for missing values)
+        expected_fields = [
+            "grade_level", "homeroom_id", "homeroom_name", 
+            "specialist_subject", "specialist_room_id", "specialist_room_name"
+        ]
+        for field in expected_fields:
+            if field not in teacher_response:
+                teacher_response[field] = None
+        
+        teacher_data.append(teacher_response)
+    
+    return teacher_data
 
 @router.post("/users", response_model=UserOut)
 async def create_user(
