@@ -29,8 +29,8 @@ async def list_classrooms(
     session: AsyncSession = Depends(get_db),
     _: any = Depends(get_current_user),
 ):
-    """List classrooms with optional filtering - DEBUG VERSION"""
-    print("🔍 DEBUG: Starting list_classrooms")
+    """List classrooms with enrollment counts calculated from StudentSubjectEnrollment"""
+    print("=== ENROLLMENT CALCULATION FIX ACTIVE ===")
     
     query = select(Classroom).options(
         joinedload(Classroom.subject),
@@ -56,23 +56,36 @@ async def list_classrooms(
     result = await session.execute(query)
     classrooms = result.scalars().all()
     
-    print(f"🔍 DEBUG: Found {len(classrooms)} classrooms")
-    
+    print(f"DEBUG: Found {len(classrooms)} classrooms")
+
+    print("DEBUG: Starting enrollment count calculation")
+
+    # Import here to avoid circular imports
+    from ..models.student_subject_enrollment import StudentSubjectEnrollment
+
     for i, classroom in enumerate(classrooms):
-        print(f"🔍 DEBUG: Classroom {i+1}: {classroom.name}")
-        print(f"   - Teacher assignments count: {len(classroom.teacher_assignments) if classroom.teacher_assignments else 0}")
-        
-        if classroom.teacher_assignments:
-            for j, ta in enumerate(classroom.teacher_assignments):
-                print(f"   - Assignment {j+1}: Role={ta.role_name}, Active={ta.is_active}")
-                print(f"     Teacher: {ta.teacher.first_name if ta.teacher else 'None'} {ta.teacher.last_name if ta.teacher else ''}")
-        else:
-            print("   - No teacher assignments found!")
-        
-        # Set enrollment count
-        classroom.enrollment_count = 0
-    
-    print("🔍 DEBUG: Returning classrooms")
+        print(f"DEBUG: Processing Classroom {i+1}: {classroom.name}")
+
+        try:
+            # Calculate actual enrollment count from StudentSubjectEnrollment
+            print(f"   - Calculating enrollments for classroom {classroom.id}")
+            enrollment_count_result = await session.execute(
+                select(func.count(StudentSubjectEnrollment.id)).where(
+                    and_(
+                        StudentSubjectEnrollment.classroom_id == classroom.id,
+                        StudentSubjectEnrollment.is_active == True,
+                        StudentSubjectEnrollment.enrollment_status == "ACTIVE"
+                    )
+                )
+            )
+            enrollment_count = enrollment_count_result.scalar() or 0
+            classroom.enrollment_count = enrollment_count
+            print(f"   - Found {enrollment_count} active enrollments")
+        except Exception as e:
+            print(f"   - ERROR calculating enrollments for {classroom.name}: {e}")
+            classroom.enrollment_count = 0
+
+    print("DEBUG: Enrollment calculation completed, returning classrooms")
     return classrooms
 
 @router.post("", response_model=ClassroomOut, status_code=status.HTTP_201_CREATED)

@@ -59,8 +59,19 @@ export function useDeleteClassroom() {
   
   return useMutation({
     mutationFn: (id: string) => deleteClassroom(id),
-    onSuccess: () => {
+    onSuccess: (data, id) => {
+      // Invalidate both lists and detail queries
       qc.invalidateQueries({ queryKey: queryKeys.classrooms.lists() });
+      qc.invalidateQueries({ queryKey: queryKeys.classrooms.detail(id) });
+      
+      // Force refetch with active type
+      qc.invalidateQueries({ 
+        queryKey: queryKeys.classrooms.lists(),
+        refetchType: 'active'
+      });
+    },
+    onError: (error) => {
+      console.error('Delete classroom failed:', error);
     },
   });
 }

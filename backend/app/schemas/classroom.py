@@ -64,7 +64,7 @@ class ClassroomOut(ClassroomBase):
     academic_year: Optional[AcademicYearOut] = None
     room: Optional[RoomOut] = None  # ADDED: Room details
     teacher_assignments: List[TeacherAssignmentOut] = []  # ADDED: Teacher assignments
-    enrollment_count: int = 0
+    enrollment_count: Optional[int] = None
 
     class Config:
         orm_mode = True

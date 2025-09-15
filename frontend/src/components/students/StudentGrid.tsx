@@ -31,7 +31,7 @@ import { EnhancedStudentCard } from './EnhancedStudentCard';
 import { EnrollmentStatus } from './EnrollmentStatus';
 import { BulkOperationsToolbar } from './BulkOperationsToolbar';
 import { Student, Enrollment, GRADE_LEVELS } from '@/schemas/students';
-import { useStudentEnrollments } from '@/features/enrollment/hooks/useStudents';
+import { useStudentEnrollments } from '@/features/enrollment/hooks/useStudentEnrollments';
 
 interface StudentGridProps {
   students: Student[];
@@ -503,7 +503,7 @@ export const StudentGrid: React.FC<StudentGridProps> = ({
               <Box key={student.id} sx={{ minHeight: useEnhancedCards ? 400 : 320 }}>
                 {useEnhancedCards ? (
                   <Box sx={{ height: '100%' }}>
-                    <EnhancedStudentCard
+                    <EnhancedStudentCardWrapper
                       student={student}
                       selected={selectedStudents.has(student.id)}
                       onSelect={handleSelectStudent}
@@ -512,13 +512,8 @@ export const StudentGrid: React.FC<StudentGridProps> = ({
                       onEnroll={onEnroll}
                       onExpandEnrollments={handleToggleExpand}
                       isExpanded={expandedStudents.has(student.id)}
-                      enrollmentCount={0} // Will be loaded by wrapper
                       showSelection={selectMode}
-                      // Provide mock data for enhanced features until backend integration
-                      accommodations={undefined}
-                      contactInfo={undefined}
-                      compact={false}
-                      highlighted={false}
+                      academicYearId={academicYearId}
                     />
                     {/* Expanded Enrollment Details */}
                     {expandedStudents.has(student.id) && (
@@ -614,6 +609,59 @@ export const StudentGrid: React.FC<StudentGridProps> = ({
         />
       )}
     </Box>
+  );
+};
+
+// Enhanced card wrapper that handles enrollment data fetching
+interface EnhancedStudentCardWrapperProps {
+  student: Student;
+  selected?: boolean;
+  onSelect?: (studentId: string, selected: boolean) => void;
+  onEdit: (student: Student) => void;
+  onDelete: (student: Student) => void;
+  onEnroll: (student: Student) => void;
+  onExpandEnrollments: (studentId: string) => void;
+  isExpanded: boolean;
+  showSelection?: boolean;
+  academicYearId?: string;
+}
+
+const EnhancedStudentCardWrapper: React.FC<EnhancedStudentCardWrapperProps> = ({
+  student,
+  selected,
+  onSelect,
+  onEdit,
+  onDelete,
+  onEnroll,
+  onExpandEnrollments,
+  isExpanded,
+  showSelection,
+  academicYearId,
+}) => {
+  // Fetch enrollments for this specific student
+  const { data: enrollments = [], isLoading } = useStudentEnrollments(student.id, {
+    active_only: true,
+    academic_year_id: academicYearId,
+  });
+
+  return (
+    <EnhancedStudentCard
+      student={student}
+      selected={selected}
+      onSelect={onSelect}
+      onEdit={onEdit}
+      onDelete={onDelete}
+      onEnroll={onEnroll}
+      onExpandEnrollments={onExpandEnrollments}
+      isExpanded={isExpanded}
+      enrollmentCount={enrollments.length}
+      showSelection={showSelection}
+      // Provide mock data for enhanced features until backend integration
+      accommodations={undefined}
+      contactInfo={undefined}
+      compact={false}
+      highlighted={false}
+    />
   );
 };
 

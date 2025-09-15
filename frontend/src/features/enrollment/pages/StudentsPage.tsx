@@ -44,6 +44,7 @@ import {
   Cake as CakeIcon,
   School as EnrollmentIcon,
   Search as SearchIcon,
+  AutoAwesome as ThreeTierIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -56,10 +57,10 @@ import {
   useCreateStudent,
   useUpdateStudent,
   useDeleteStudent,
-  useStudentEnrollments,
   useEnrollStudent,
   useWithdrawEnrollment,
 } from '@/features/enrollment/hooks/useStudents';
+import { useStudentEnrollments } from '@/features/enrollment/hooks/useStudentEnrollments';
 import { useClassrooms } from '@/features/academics/hooks/useClassrooms';
 import { useYears } from '@/features/academics/hooks/useYears';
 import {
@@ -73,6 +74,7 @@ import {
   EnrollmentCreate,
 } from '@/schemas/students';
 import { StudentGrid, EnhancedEnrollmentManager } from '@/components/students';
+import ThreeTierEnrollmentManager from '@/components/enrollment/ThreeTierEnrollmentManager';
 
 // Enrollment form schema
 const EnrollmentFormSchema = z.object({
@@ -91,6 +93,10 @@ export default function StudentsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
   const [bulkEnrollDialogOpen, setBulkEnrollDialogOpen] = useState(false);
+  const [twoTierEnrollDialogOpen, setTwoTierEnrollDialogOpen] = useState(false);
+  const [threeTierEnrollDialogOpen, setThreeTierEnrollDialogOpen] = useState(false);
+  const [selectedStudentsForTwoTier, setSelectedStudentsForTwoTier] = useState<Student[]>([]);
+  const [selectedStudentsForThreeTier, setSelectedStudentsForThreeTier] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [selectedStudentsForBulk, setSelectedStudentsForBulk] = useState<Student[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -111,6 +117,7 @@ export default function StudentsPage() {
     const isActive = y.is_active;
     return isActive === true || String(isActive).toLowerCase() === 'true' || String(isActive).toLowerCase() === 't';
   });
+
 
   // Filter classrooms by active academic year for enrollment
   const classroomsQuery = useClassrooms(
@@ -451,6 +458,42 @@ export default function StudentsPage() {
                 {useEnhancedView ? 'Enhanced' : 'Standard'}
               </Button>
             )}
+            <Button
+              variant="outlined"
+              startIcon={<SchoolIcon />}
+              onClick={() => {
+                setSelectedStudentsForTwoTier(filteredStudents);
+                setTwoTierEnrollDialogOpen(true);
+              }}
+              size="large"
+              sx={{ 
+                borderRadius: 2,
+                px: 3,
+              }}
+            >
+              Homeroom Enrollment
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<ThreeTierIcon />}
+              onClick={() => {
+                setSelectedStudentsForThreeTier(filteredStudents);
+                setThreeTierEnrollDialogOpen(true);
+              }}
+              size="large"
+              sx={{ 
+                borderRadius: 2,
+                px: 3,
+                borderColor: theme.palette.secondary.main,
+                color: theme.palette.secondary.main,
+                '&:hover': {
+                  borderColor: theme.palette.secondary.dark,
+                  backgroundColor: alpha(theme.palette.secondary.main, 0.04),
+                },
+              }}
+            >
+              Three-Tier Enrollment
+            </Button>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -1106,6 +1149,15 @@ export default function StudentsPage() {
         }))}
         academicYearName={activeYear?.name}
         onEnroll={handleProcessBulkEnrollments}
+      />
+
+      {/* Three-Tier Enrollment Dialog */}
+      <ThreeTierEnrollmentManager
+        open={twoTierEnrollDialogOpen}
+        onClose={() => setTwoTierEnrollDialogOpen(false)}
+        students={selectedStudentsForTwoTier}
+        academicYearId={activeYear?.id || ''}
+        academicYearName={activeYear?.name}
       />
     </Box>
   );
