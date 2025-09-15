@@ -1,0 +1,125 @@
+# backend/app/models/student_subject_enrollment.py
+
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import String, Boolean, DateTime, Text, ForeignKey, Numeric
+from sqlalchemy.dialects.postgresql import UUID
+from datetime import datetime
+from decimal import Decimal
+import uuid
+from .base import Base
+
+class StudentSubjectEnrollment(Base):
+    """
+    Tracks which students are enrolled in which subjects with which teachers.
+    Links students to teacher-subject combinations for grading and attendance.
+    """
+    __tablename__ = "student_subject_enrollments"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Foreign Keys
+    student_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("students.id"), nullable=False)
+    teacher_subject_assignment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("teacher_subject_assignments.id"), nullable=False)
+    academic_year_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("academic_years.id"), nullable=False)
+    
+    # Enrollment Details
+    enrollment_type: Mapped[str] = mapped_column(String(20), nullable=False, default="STANDARD")  # STANDARD, ADVANCED, REMEDIAL, SUPPORT
+    enrollment_status: Mapped[str] = mapped_column(String(20), nullable=False, default="ACTIVE")  # ACTIVE, DROPPED, COMPLETED, TRANSFERRED
+    
+    # Academic Progress
+    current_grade: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=True)  # Current grade percentage (0-100)
+    grade_letter: Mapped[str] = mapped_column(String(2), nullable=True)  # A, B, C, D, F, I, P, etc.
+    
+    # Attendance Tracking
+    total_classes: Mapped[int] = mapped_column(nullable=True, default=0)
+    classes_attended: Mapped[int] = mapped_column(nullable=True, default=0)
+    tardies: Mapped[int] = mapped_column(nullable=True, default=0)
+    
+    # Timestamps
+    enrollment_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    effective_start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    effective_end_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    last_attendance_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    
+    # Enrollment Context
+    is_auto_enrolled: Mapped[bool] = mapped_column(Boolean, default=True)  # True if created by auto-enrollment logic
+    enrollment_reason: Mapped[str] = mapped_column(Text, nullable=True)  # Why student was enrolled
+    enrolled_by_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    
+    # Special Considerations
+    has_iep: Mapped[bool] = mapped_column(Boolean, default=False)  # Individual Education Plan
+    has_504: Mapped[bool] = mapped_column(Boolean, default=False)  # 504 Plan
+    accommodation_notes: Mapped[str] = mapped_column(Text, nullable=True)
+    
+    # Relationships
+    student = relationship("Student", back_populates="subject_enrollments")
+    teacher_assignment = relationship("TeacherSubjectAssignment", back_populates="student_enrollments")
+    academic_year = relationship("AcademicYear")
+    enrolled_by = relationship("User", foreign_keys=[enrolled_by_user_id])
+    
+    def __repr__(self):
+        return f"<StudentSubjectEnrollment {self.student.first_name if self.student else 'Unknown'} in {self.teacher_assignment.subject.name if self.teacher_assignment and self.teacher_assignment.subject else 'Unknown'}>"
+    
+    @property
+    def attendance_rate(self) -> float:
+        """Calculate attendance rate as a percentage"""
+        if not self.total_classes or self.total_classes == 0:
+            return 0.0
+        return (self.classes_attended / self.total_classes) * 100
+    
+    @classmethod
+    async def get_student_enrollments(cls, session, student_id: uuid.UUID, academic_year_id: uuid.UUID = None):
+        """Get all enrollments for a student in a specific academic year"""
+        from sqlalchemy import select, and_
+        from sqlalchemy.orm import joinedload
+        
+        query = (
+            select(cls)
+            .options(
+                joinedload(cls.teacher_assignment).joinedload("subject"),
+                joinedload(cls.teacher_assignment).joinedload("teacher")
+            )
+            .where(
+                and_(
+                    cls.student_id == student_id,
+                    cls.enrollment_status == "ACTIVE"
+                )
+            )
+        )
+        
+        if academic_year_id:
+            query = query.where(cls.academic_year_id == academic_year_id)
+            
+        result = await session.execute(query)
+        return result.scalars().all()
+    
+    @classmethod
+    async def get_teacher_enrollments(cls, session, teacher_id: uuid.UUID, subject_id: uuid.UUID = None, academic_year_id: uuid.UUID = None):
+        """Get all student enrollments for a teacher's subjects"""
+        from sqlalchemy import select, and_
+        from sqlalchemy.orm import joinedload
+        from .teacher_subject_assignment import TeacherSubjectAssignment
+        
+        query = (
+            select(cls)
+            .options(
+                joinedload(cls.student),
+                joinedload(cls.teacher_assignment).joinedload("subject")
+            )
+            .join(TeacherSubjectAssignment)
+            .where(
+                and_(
+                    TeacherSubjectAssignment.teacher_id == teacher_id,
+                    cls.enrollment_status == "ACTIVE"
+                )
+            )
+        )
+        
+        if subject_id:
+            query = query.where(TeacherSubjectAssignment.subject_id == subject_id)
+            
+        if academic_year_id:
+            query = query.where(cls.academic_year_id == academic_year_id)
+            
+        result = await session.execute(query)
+        return result.scalars().all()

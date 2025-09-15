@@ -40,6 +40,10 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Archive as ArchiveIcon,
+  Unarchive as RestoreIcon,
+  Visibility as ShowArchivedIcon,
+  VisibilityOff as HideArchivedIcon,
   Search as SearchIcon,
   FilterList as FilterIcon,
   Science as ScienceIcon,
@@ -58,6 +62,8 @@ import {
   useCreateSubject,
   useUpdateSubject,
   useDeleteSubject,
+  useArchiveSubject,
+  useRestoreSubject,
 } from '@/features/academics/hooks/useSubjects';
 import SubjectFormDialog from '@/features/academics/components/SubjectFormDialog';
 import { Subject, SubjectCreate } from '@/schemas/academics';
@@ -71,6 +77,8 @@ export default function SubjectsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   
   // Tab and search state
   const [activeTab, setActiveTab] = useState(0);
@@ -80,13 +88,16 @@ export default function SubjectsPage() {
   
   // Queries
   const { data: subjects = [], isLoading, error } = useSubjects({ 
-    school_id: schoolId 
+    school_id: schoolId,
+    include_archived: showArchived
   });
 
   // Mutations
   const createMutation = useCreateSubject();
   const updateMutation = useUpdateSubject(selectedSubject?.id || '');
   const deleteMutation = useDeleteSubject();
+  const archiveMutation = useArchiveSubject();
+  const restoreMutation = useRestoreSubject();
 
   // Handle create
   const handleCreate = async (data: SubjectCreate) => {
@@ -119,6 +130,30 @@ export default function SubjectsPage() {
       setSelectedSubject(null);
     } catch (error) {
       console.error('Failed to delete subject:', error);
+    }
+  };
+
+  // Handle archive
+  const handleArchive = async () => {
+    if (!selectedSubject) return;
+    try {
+      await archiveMutation.mutateAsync({ 
+        id: selectedSubject.id, 
+        reason: "Archived by administrator" 
+      });
+      setArchiveConfirmOpen(false);
+      setSelectedSubject(null);
+    } catch (error) {
+      console.error('Failed to archive subject:', error);
+    }
+  };
+
+  // Handle restore
+  const handleRestore = async (subject: Subject) => {
+    try {
+      await restoreMutation.mutateAsync(subject.id);
+    } catch (error) {
+      console.error('Failed to restore subject:', error);
     }
   };
 
@@ -210,18 +245,31 @@ export default function SubjectsPage() {
               Manage academic structure: years, subjects, and classrooms. All changes are immediately saved.
             </Typography>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setCreateDialogOpen(true)}
-            size="large"
-            sx={{ 
-              borderRadius: 2,
-              px: 3,
-            }}
-          >
-            Add Subject
-          </Button>
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="outlined"
+              startIcon={showArchived ? <HideArchivedIcon /> : <ShowArchivedIcon />}
+              onClick={() => setShowArchived(!showArchived)}
+              sx={{ 
+                borderRadius: 2,
+                px: 2,
+              }}
+            >
+              {showArchived ? 'Hide Archived' : 'Show Archived'}
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setCreateDialogOpen(true)}
+              size="large"
+              sx={{ 
+                borderRadius: 2,
+                px: 3,
+              }}
+            >
+              Add Subject
+            </Button>
+          </Stack>
         </Stack>
 
         {/* Search Bar */}
@@ -331,6 +379,14 @@ export default function SubjectsPage() {
                           sx={{ fontSize: '0.7rem' }}
                         />
                       )}
+                      {subject.is_archived && (
+                        <Chip 
+                          label="Archived" 
+                          size="small" 
+                          color="warning"
+                          sx={{ fontSize: '0.7rem' }}
+                        />
+                      )}
                     </Stack>
                   }
                   secondary={
@@ -350,36 +406,54 @@ export default function SubjectsPage() {
                 
                 <ListItemSecondaryAction>
                   <Stack direction="row" spacing={1}>
-                    <Tooltip title="Edit Subject">
-                      <IconButton
-                        onClick={() => {
-                          setSelectedSubject(subject);
-                          setEditDialogOpen(true);
-                        }}
-                        size="small"
-                        sx={{ 
-                          color: theme.palette.primary.main,
-                          '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
-                        }}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete Subject">
-                      <IconButton
-                        onClick={() => {
-                          setSelectedSubject(subject);
-                          setDeleteConfirmOpen(true);
-                        }}
-                        size="small"
-                        sx={{ 
-                          color: theme.palette.error.main,
-                          '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
-                        }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                    {!subject.is_archived ? (
+                      <>
+                        <Tooltip title="Edit Subject">
+                          <IconButton
+                            onClick={() => {
+                              setSelectedSubject(subject);
+                              setEditDialogOpen(true);
+                            }}
+                            size="small"
+                            sx={{ 
+                              color: theme.palette.primary.main,
+                              '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete Subject">
+                          <IconButton
+                            onClick={() => {
+                              setSelectedSubject(subject);
+                              setDeleteConfirmOpen(true);
+                            }}
+                            size="small"
+                            sx={{ 
+                              color: theme.palette.error.main,
+                              '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </>
+                    ) : (
+                      <Tooltip title="Restore Subject">
+                        <IconButton
+                          onClick={() => handleRestore(subject)}
+                          size="small"
+                          disabled={restoreMutation.isPending}
+                          sx={{ 
+                            color: theme.palette.success.main,
+                            '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.1) }
+                          }}
+                        >
+                          <RestoreIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </Stack>
                 </ListItemSecondaryAction>
               </ListItem>
@@ -439,6 +513,32 @@ export default function SubjectsPage() {
             disabled={deleteMutation.isPending}
           >
             {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Archive Confirmation Dialog */}
+      <Dialog open={archiveConfirmOpen} onClose={() => setArchiveConfirmOpen(false)}>
+        <DialogTitle>Confirm Archive</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>
+            Are you sure you want to archive subject "{selectedSubject?.name}"?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Archived subjects will be hidden from active use but preserved for historical data.
+            You can restore archived subjects later if needed.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setArchiveConfirmOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleArchive}
+            color="warning"
+            variant="contained"
+            disabled={archiveMutation.isPending}
+            startIcon={<ArchiveIcon />}
+          >
+            {archiveMutation.isPending ? 'Archiving...' : 'Archive'}
           </Button>
         </DialogActions>
       </Dialog>

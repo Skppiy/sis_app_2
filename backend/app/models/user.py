@@ -26,6 +26,9 @@ class User(Base):
     role_preference = relationship("UserRolePreference", back_populates="user", uselist=False, cascade="all, delete-orphan")
     parent_profile = relationship("Parent", back_populates="user", uselist=False, cascade="all, delete-orphan")
     
+    # Homeroom Intelligence System relationships
+    subject_assignments = relationship("TeacherSubjectAssignment", foreign_keys="TeacherSubjectAssignment.teacher_id", back_populates="teacher", cascade="all, delete-orphan")
+    
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"

@@ -3,6 +3,7 @@
 from pydantic import BaseModel, validator
 from typing import Optional
 from uuid import UUID
+from datetime import datetime
 
 class SubjectBase(BaseModel):
     name: str
@@ -46,6 +47,9 @@ class SubjectOut(SubjectBase):
     id: UUID
     is_system_core: bool
     created_by_admin: bool
+    is_archived: bool = False
+    archived_at: Optional[datetime] = None
+    archived_reason: Optional[str] = None
 
     class Config:
         orm_mode = True

@@ -5,9 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from typing import List, Optional
+import logging
 from ..deps import get_db, require_admin, get_current_user
 from ..models.subject import Subject
 from ..schemas.subject import SubjectCreate, SubjectOut, SubjectUpdate
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/subjects", tags=["subjects"])
 
@@ -15,11 +18,16 @@ router = APIRouter(prefix="/subjects", tags=["subjects"])
 async def list_subjects(
     grade_band: Optional[str] = None,  # "elementary", "middle"
     subject_type: Optional[str] = None,  # "CORE", "ENRICHMENT", "SPECIAL"
+    include_archived: bool = False,  # Show archived subjects
     session: AsyncSession = Depends(get_db),
     _: any = Depends(get_current_user),
 ):
     """Get subjects with optional filtering"""
     query = select(Subject).order_by(Subject.name)
+    
+    # By default, only show non-archived subjects
+    if not include_archived:
+        query = query.where(Subject.is_archived == False)
     
     if grade_band == "elementary":
         query = query.where(Subject.applies_to_elementary == True)
@@ -72,9 +80,34 @@ async def create_subject(
     await session.commit()
     await session.refresh(subject)
     
-    # If this subject was marked as homeroom default, sync with existing homerooms
-    if payload.is_homeroom_default:
-        await _sync_homeroom_assignments(session, subject, added=True)
+    # If this is a CORE subject applicable to elementary, auto-assign to existing homeroom teachers
+    if (payload.subject_type.upper() == "CORE" and 
+        payload.applies_to_elementary and 
+        payload.is_homeroom_default):
+        
+        # Get active academic year for auto-assignment
+        from ..models.academic_year import AcademicYear
+        active_year_result = await session.execute(
+            select(AcademicYear).where(AcademicYear.is_active == True)
+        )
+        active_year = active_year_result.scalar_one_or_none()
+        
+        if active_year:
+            from ..services.homeroom_service import HomeroomService
+            homeroom_service = HomeroomService(session)
+            
+            try:
+                # Auto-assign to existing homeroom teachers
+                auto_assign_result = await homeroom_service.auto_assign_new_core_subject(
+                    subject_id=subject.id,
+                    academic_year_id=active_year.id,
+                    created_by_user_id=_.id  # Current admin user
+                )
+                logger.info(f"Auto-assigned new CORE subject {subject.name} to {auto_assign_result['total_assignments']} teachers")
+            except Exception as e:
+                logger.error(f"Failed to auto-assign new CORE subject {subject.name}: {str(e)}")
+                # Don't fail the subject creation if auto-assignment fails
+                pass
     
     return subject
 
@@ -151,26 +184,136 @@ async def delete_subject(
     session: AsyncSession = Depends(get_db),
     _: any = Depends(require_admin),
 ):
-    """Delete a subject (cannot delete system core subjects)"""
+    """Delete a subject if no grade data exists, otherwise return error suggesting archive"""
+    from uuid import UUID
+    from ..services.grade_data_service import GradeDataService
+    
+    subject = await session.get(Subject, UUID(subject_id))
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    
+    # Prevent deletion of system core subjects
+    if subject.is_system_core:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot delete system core subjects. These are required for the system to function properly."
+        )
+    
+    # Use comprehensive grade data service to check for academic data
+    grade_service = GradeDataService(session)
+    grade_check = await grade_service.check_subject_grade_data(subject.id)
+    
+    # If any grade data exists, block deletion and suggest archival
+    if not grade_check["safe_to_delete"]:
+        raise HTTPException(
+            status_code=400, 
+            detail=grade_check["error_message"]
+        )
+    
+    # Additional safety check: Don't delete if subject is currently archived
+    # (archived subjects should be restored first if admin wants to delete)
+    if subject.is_archived:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete archived subject directly. Restore the subject first, then delete if no grade data exists."
+        )
+        
+    # No grade data found - safe to delete
+    await session.delete(subject)
+    await session.commit()
+    logger.info(f"Deleted subject {subject.name} (ID: {subject.id}) - no grade data found")
+
+@router.get("/{subject_id}/grade-data-check")
+async def check_subject_grade_data(
+    subject_id: str,
+    session: AsyncSession = Depends(get_db),
+    _: any = Depends(require_admin),
+):
+    """Check if subject has grade data that would prevent deletion"""
+    from uuid import UUID
+    from ..services.grade_data_service import GradeDataService
+    
+    subject = await session.get(Subject, UUID(subject_id))
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    
+    grade_service = GradeDataService(session)
+    return await grade_service.get_subject_usage_summary(subject.id)
+
+@router.post("/{subject_id}/archive", response_model=SubjectOut)
+async def archive_subject(
+    subject_id: str,
+    archive_reason: Optional[str] = "Archived by administrator",
+    session: AsyncSession = Depends(get_db),
+    _: any = Depends(require_admin),
+):
+    """Archive a subject (soft delete) - for subjects with existing grade data"""
+    from uuid import UUID
+    from datetime import datetime
+    from ..services.grade_data_service import GradeDataService
+    
+    subject = await session.get(Subject, UUID(subject_id))
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    
+    if subject.is_archived:
+        raise HTTPException(status_code=400, detail="Subject is already archived")
+    
+    # Check what data would be preserved by archiving
+    grade_service = GradeDataService(session)
+    usage_summary = await grade_service.get_subject_usage_summary(subject.id)
+    
+    # Generate detailed archive reason if not provided
+    if not archive_reason or archive_reason == "Archived by administrator":
+        if usage_summary["usage_summary"]:
+            preserved_data = []
+            if usage_summary["usage_summary"].get("student_enrollments_with_grades"):
+                preserved_data.append(f"{usage_summary['usage_summary']['student_enrollments_with_grades']} student grades")
+            if usage_summary["usage_summary"].get("classroom_enrollments"):
+                preserved_data.append(f"{usage_summary['usage_summary']['classroom_enrollments']} classroom enrollments")
+            if usage_summary["usage_summary"].get("teacher_assignments"):
+                preserved_data.append(f"{usage_summary['usage_summary']['teacher_assignments']} teacher assignments")
+            
+            if preserved_data:
+                years_text = f" from {', '.join(usage_summary['affected_years'])}" if usage_summary['affected_years'] else ""
+                archive_reason = f"Archived to preserve {', '.join(preserved_data)}{years_text}"
+    
+    # Archive the subject
+    subject.is_archived = True
+    subject.archived_at = datetime.utcnow()
+    subject.archived_reason = archive_reason or "Archived by administrator"
+    
+    await session.commit()
+    await session.refresh(subject)
+    
+    logger.info(f"Archived subject {subject.name} - {archive_reason}")
+    return subject
+
+@router.post("/{subject_id}/restore", response_model=SubjectOut)
+async def restore_subject(
+    subject_id: str,
+    session: AsyncSession = Depends(get_db),
+    _: any = Depends(require_admin),
+):
+    """Restore an archived subject"""
     from uuid import UUID
     
     subject = await session.get(Subject, UUID(subject_id))
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
     
-    if subject.is_system_core:
-        raise HTTPException(status_code=400, detail="Cannot delete system core subjects")
+    if not subject.is_archived:
+        raise HTTPException(status_code=400, detail="Subject is not archived")
     
-    # Check if subject is in use
-    from ..models.classroom import Classroom
-    classrooms_using = await session.execute(
-        select(func.count(Classroom.id)).where(Classroom.subject_id == subject.id)
-    )
-    if classrooms_using.scalar() > 0:
-        raise HTTPException(status_code=400, detail="Cannot delete subject that is assigned to classrooms")
+    subject.is_archived = False
+    subject.archived_at = None
+    subject.archived_reason = None
     
-    await session.delete(subject)
     await session.commit()
+    await session.refresh(subject)
+    
+    logger.info(f"Restored subject {subject.name}")
+    return subject
 
 # Helper function for homeroom sync logic
 async def _sync_homeroom_assignments(session: AsyncSession, subject: Subject, added: bool):

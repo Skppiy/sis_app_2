@@ -4,7 +4,9 @@ import {
   listSubjects, 
   createSubject, 
   updateSubject, 
-  deleteSubject
+  deleteSubject,
+  archiveSubject,
+  restoreSubject
 } from '../services/subjects';
 import type { Subject } from '@/schemas/academics';
 import { queryKeys } from '@/api/queryKeys';
@@ -15,6 +17,7 @@ export function useSubjects(filters?: {
   is_active?: boolean;
   grade_band?: string;
   subject_type?: string;
+  include_archived?: boolean;
 }) {
   return useQuery({
     queryKey: queryKeys.subjects.list(filters),
@@ -54,6 +57,36 @@ export function useDeleteSubject() {
   
   return useMutation({
     mutationFn: deleteSubject,
+    onSuccess: () => {
+      // Force invalidate and refetch all subject queries
+      queryClient.invalidateQueries({ 
+        queryKey: ['subjects'],
+        exact: false,
+        refetchType: 'active'
+      });
+    },
+  });
+}
+
+// Hook to archive a subject
+export function useArchiveSubject() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => 
+      archiveSubject(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.lists() });
+    },
+  });
+}
+
+// Hook to restore a subject
+export function useRestoreSubject() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: restoreSubject,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.subjects.lists() });
     },

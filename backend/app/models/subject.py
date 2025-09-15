@@ -1,9 +1,11 @@
 # backend/app/models/subject.py
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, Boolean
+from sqlalchemy import String, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
+from datetime import datetime
+from typing import Optional
 from .base import Base
 
 class Subject(Base):
@@ -29,8 +31,14 @@ class Subject(Base):
     is_system_core: Mapped[bool] = mapped_column(Boolean, default=False)         # Can't be deleted if True
     created_by_admin: Mapped[bool] = mapped_column(Boolean, default=True)        # Track origin
     
+    # Archival System (Soft Delete)
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False)            # Hidden from active use
+    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # When archived
+    archived_reason: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)  # Why archived
+    
     # Relationships
-    classrooms = relationship("Classroom", back_populates="subject", cascade="all, delete-orphan")
+    classrooms = relationship("Classroom", back_populates="subject")
+    teacher_assignments = relationship("TeacherSubjectAssignment", back_populates="subject")
     
     def __repr__(self):
         return f"<Subject {self.name} ({self.subject_type})>"

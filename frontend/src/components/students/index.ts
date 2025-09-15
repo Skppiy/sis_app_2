@@ -8,6 +8,7 @@ export { SpecialNeedsIndicator } from './SpecialNeedsIndicator';
 export { ContactInfoDisplay } from './ContactInfoDisplay';
 export { BulkOperationsToolbar } from './BulkOperationsToolbar';
 export { EnhancedEnrollmentManager } from './EnhancedEnrollmentManager';
+export { TwoTierEnrollmentManager } from './TwoTierEnrollmentManager';
 export { StudentServicesPanel } from './StudentServicesPanel';
 
 export type { StatusType } from './StatusBadge';

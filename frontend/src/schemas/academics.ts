@@ -36,6 +36,9 @@ export const SubjectSchema = z.object({
   allows_cross_grade: z.boolean().default(false),
   is_system_core: z.boolean().default(false),
   created_by_admin: z.boolean().default(true),
+  is_archived: z.boolean().default(false),
+  archived_at: z.string().datetime().nullable().optional(),
+  archived_reason: z.string().nullable().optional(),
 });
 export type Subject = z.infer<typeof SubjectSchema>;
 
@@ -265,3 +268,144 @@ export const CLASSROOM_TYPES = [
   { value: 'ENRICHMENT', label: 'Enrichment' },
   { value: 'SPECIAL', label: 'Special' },
 ];
+
+// Homeroom schemas for the homeroom intelligence system
+export const HomeroomCreateSchema = z.object({
+  teacher_id: z.string().uuid("Please select a teacher"),
+  grade_level: z.string().min(1, "Please select a grade level"),
+  room_id: z.string().uuid().optional(),
+  academic_year_id: z.string().uuid("Academic year is required"),
+});
+export type HomeroomCreate = z.infer<typeof HomeroomCreateSchema>;
+
+// Elementary grades for homeroom creation (K-5)
+export const ELEMENTARY_GRADES = [
+  { value: 'K', label: 'Kindergarten' },
+  { value: '1', label: '1st Grade' },
+  { value: '2', label: '2nd Grade' },
+  { value: '3', label: '3rd Grade' },
+  { value: '4', label: '4th Grade' },
+  { value: '5', label: '5th Grade' },
+];
+
+// Helper function to check if a grade is elementary
+export function isElementaryGrade(grade: string): boolean {
+  return ELEMENTARY_GRADES.some(g => g.value === grade);
+}
+
+// Core subjects that are auto-assigned in homeroom creation
+export const CORE_SUBJECTS = [
+  'Mathematics',
+  'English Language Arts',
+  'Science',
+  'Social Studies',
+  'Reading',
+];
+
+// Schema for auto-assignment preview data
+export const AutoAssignmentPreviewSchema = z.object({
+  eligible_subjects: z.array(z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+    code: z.string(),
+    subject_type: z.string(),
+    is_homeroom_default: z.boolean(),
+  })),
+  estimated_students: z.number().int(),
+  teacher_workload_impact: z.object({
+    current_subjects: z.number().int(),
+    new_subjects: z.number().int(),
+    total_subjects: z.number().int(),
+    current_students: z.number().int(),
+    estimated_new_students: z.number().int(),
+    total_estimated_students: z.number().int(),
+  }),
+  conflicts: z.array(z.object({
+    type: z.string(),
+    message: z.string(),
+    severity: z.enum(['warning', 'error']),
+  })),
+});
+export type AutoAssignmentPreview = z.infer<typeof AutoAssignmentPreviewSchema>;
+
+// Teacher Subject Swap Schemas
+export const TeacherSwapCreateSchema = z.object({
+  target_teacher_id: z.string().uuid("Please select a target teacher"),
+  requester_subject_id: z.string().uuid("Please select your subject to swap"),
+  target_subject_id: z.string().uuid("Please select the target subject"),
+  reason: z.string().min(10, "Please provide a reason (at least 10 characters)").max(500, "Reason must be less than 500 characters"),
+});
+export type TeacherSwapCreate = z.infer<typeof TeacherSwapCreateSchema>;
+
+export const SwapResponseSchema = z.object({
+  response: z.enum(['ACCEPT', 'DECLINE']),
+  comments: z.string().max(300, "Comments must be less than 300 characters").optional(),
+});
+export type SwapResponse = z.infer<typeof SwapResponseSchema>;
+
+export const AdminSwapReviewSchema = z.object({
+  decision: z.enum(['APPROVE', 'REJECT']),
+  admin_comments: z.string().max(500, "Admin comments must be less than 500 characters").optional(),
+});
+export type AdminSwapReview = z.infer<typeof AdminSwapReviewSchema>;
+
+// Swap status enumeration for type safety
+export const SWAP_STATUS = {
+  PENDING_TARGET_RESPONSE: 'PENDING_TARGET_RESPONSE',
+  PENDING_ADMIN_APPROVAL: 'PENDING_ADMIN_APPROVAL', 
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export type SwapStatus = typeof SWAP_STATUS[keyof typeof SWAP_STATUS];
+
+// Helper function to get readable swap status
+export function getSwapStatusText(status: SwapStatus): string {
+  switch (status) {
+    case SWAP_STATUS.PENDING_TARGET_RESPONSE:
+      return 'Awaiting Teacher Response';
+    case SWAP_STATUS.PENDING_ADMIN_APPROVAL:
+      return 'Awaiting Admin Approval';
+    case SWAP_STATUS.APPROVED:
+      return 'Approved & Executed';
+    case SWAP_STATUS.REJECTED:
+      return 'Rejected';
+    case SWAP_STATUS.CANCELLED:
+      return 'Cancelled';
+    default:
+      return 'Unknown Status';
+  }
+}
+
+// Helper function to get swap status color for Material-UI chips
+export function getSwapStatusColor(status: SwapStatus): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' {
+  switch (status) {
+    case SWAP_STATUS.PENDING_TARGET_RESPONSE:
+      return 'warning';
+    case SWAP_STATUS.PENDING_ADMIN_APPROVAL:
+      return 'info';
+    case SWAP_STATUS.APPROVED:
+      return 'success';
+    case SWAP_STATUS.REJECTED:
+      return 'error';
+    case SWAP_STATUS.CANCELLED:
+      return 'default';
+    default:
+      return 'default';
+  }
+}
+
+// Core subjects eligible for elementary teacher swaps
+export const SWAPPABLE_CORE_SUBJECTS = [
+  'Mathematics',
+  'English Language Arts',
+  'Science',
+  'Social Studies',
+  'Reading',
+] as const;
+
+// Helper function to check if a subject is swappable
+export function isSwappableSubject(subjectName: string): boolean {
+  return SWAPPABLE_CORE_SUBJECTS.includes(subjectName as any);
+}

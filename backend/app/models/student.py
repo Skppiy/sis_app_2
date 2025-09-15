@@ -41,6 +41,12 @@ class Student(Base):
     academic_records = relationship("StudentAcademicRecord", back_populates="student", cascade="all, delete-orphan")
     special_needs = relationship("StudentSpecialNeed", back_populates="student", cascade="all, delete-orphan")
     parent_relationships = relationship("ParentStudentRelationship", back_populates="student", cascade="all, delete-orphan")
+    
+    # Homeroom Intelligence System relationships
+    subject_enrollments = relationship("StudentSubjectEnrollment", back_populates="student", cascade="all, delete-orphan")
+    
+    # Enhanced Enrollment System relationships
+    special_program_enrollments = relationship("SpecialProgramEnrollment", back_populates="student", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Student {self.first_name} {self.last_name} ({self.student_id}) - Grade {self.current_grade_level}>"

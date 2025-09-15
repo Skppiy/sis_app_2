@@ -198,9 +198,9 @@ export default function TeacherFormDialog({ open, initial, onClose, onSubmit }: 
                       )}
                     />
                     {errors.specialist_room_id && (
-                      <Typography variant="caption" color="error">
+                      <Box component="span" sx={{ color: 'error.main', fontSize: '0.75rem', mt: 0.5 }}>
                         {errors.specialist_room_id.message}
-                      </Typography>
+                      </Box>
                     )}
                   </FormControl>
                 </Stack>
@@ -230,9 +230,9 @@ export default function TeacherFormDialog({ open, initial, onClose, onSubmit }: 
                       )}
                     />
                     {errors.grade_level && (
-                      <Typography variant="caption" color="error">
+                      <Box component="span" sx={{ color: 'error.main', fontSize: '0.75rem', mt: 0.5 }}>
                         {errors.grade_level.message}
-                      </Typography>
+                      </Box>
                     )}
                   </FormControl>
 
@@ -255,9 +255,9 @@ export default function TeacherFormDialog({ open, initial, onClose, onSubmit }: 
                       )}
                     />
                     {errors.homeroom_id && (
-                      <Typography variant="caption" color="error">
+                      <Box component="span" sx={{ color: 'error.main', fontSize: '0.75rem', mt: 0.5 }}>
                         {errors.homeroom_id.message}
-                      </Typography>
+                      </Box>
                     )}
                   </FormControl>
                 </Stack>

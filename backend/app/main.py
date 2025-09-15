@@ -25,6 +25,7 @@ from .routers import parents as parents_router
 from .routers import student_services as student_services_router
 from .routers import enrollments as enrollments_router
 from .routers import users as users_router
+from .routers import homeroom as homeroom_router
 
 # Configure logging
 logging.basicConfig(
@@ -84,6 +85,7 @@ app.include_router(parents_router.router)
 app.include_router(student_services_router.router)
 app.include_router(enrollments_router.router)
 app.include_router(users_router.router)
+app.include_router(homeroom_router.router)
 
 
 # Startup event
@@ -91,6 +93,7 @@ app.include_router(users_router.router)
 async def startup_event():
     logger.info("SIS API starting up...")
     logger.info("Enrollment endpoints registered at /enrollments")
+    logger.info("Homeroom Intelligence System endpoints registered at /homeroom")
 
 
 for r in app.router.routes:

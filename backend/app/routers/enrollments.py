@@ -1,5 +1,5 @@
 # backend/app/routers/enrollments.py
-# CLEAN ROUTER - Fixed syntax errors
+# ENHANCED ROUTER - Added Three-Tier Enrollment System
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,11 +8,13 @@ from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
 from datetime import date
+import logging
 
 from ..deps import get_db, get_current_user, require_admin
 from ..models.enrollment import Enrollment
 from ..models.student import Student
 from ..models.classroom import Classroom
+from ..models.user import User
 from ..schemas.enrollment import (
     EnrollmentCreate, 
     EnrollmentOut, 
@@ -20,6 +22,21 @@ from ..schemas.enrollment import (
     EnrollmentWithDetails,
     ClassroomRosterStudent
 )
+from ..schemas.enhanced_enrollment import (
+    BulkHomeroomEnrollmentRequest,
+    BulkHomeroomEnrollmentResponse,
+    FlexibleSubjectEnrollmentRequest,
+    FlexibleSubjectEnrollmentResponse,
+    SpecialProgramEnrollmentRequest,
+    SpecialProgramEnrollmentResponse,
+    ConflictDetectionRequest,
+    ConflictDetectionResponse,
+    StudentEnrollmentSummaryRequest,
+    StudentEnrollmentSummaryResponse
+)
+from ..services.enrollment_service import EnrollmentService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/enrollments", tags=["enrollments"])
 
@@ -342,3 +359,240 @@ async def get_classroom_roster(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get classroom roster: {str(e)}")
+
+# ========================================================================
+# ENHANCED THREE-TIER ENROLLMENT SYSTEM ENDPOINTS
+# ========================================================================
+
+@router.post("/homeroom/bulk", response_model=BulkHomeroomEnrollmentResponse)
+async def bulk_homeroom_enrollment(
+    request: BulkHomeroomEnrollmentRequest,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """
+    Tier 1: Bulk enrollment of students in homeroom CORE subjects.
+    
+    This endpoint leverages the homeroom intelligence system to automatically
+    enroll students in all CORE subjects taught by their homeroom teachers.
+    
+    Requirements:
+    - Admin privileges required
+    - Grade level must be K-5 (elementary homeroom model)
+    - Students must exist and be active
+    """
+    try:
+        logger.info(f"Bulk homeroom enrollment requested by {current_user.email}")
+        
+        enrollment_service = EnrollmentService(session)
+        result = await enrollment_service.bulk_homeroom_enrollment(
+            academic_year_id=request.academic_year_id,
+            grade_level=request.grade_level,
+            students=request.students,
+            enrolled_by_user_id=current_user.id,
+            auto_create_missing_assignments=request.auto_create_missing_assignments
+        )
+        
+        logger.info(f"Bulk homeroom enrollment completed: {result.get('summary', {}).get('total_enrollments_created', 0)} enrollments")
+        return BulkHomeroomEnrollmentResponse(**result)
+        
+    except ValueError as e:
+        logger.warning(f"Invalid bulk homeroom enrollment request: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error in bulk homeroom enrollment: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/flexible/{subject_id}", response_model=FlexibleSubjectEnrollmentResponse)
+async def flexible_subject_enrollment(
+    subject_id: UUID,
+    request: FlexibleSubjectEnrollmentRequest,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """
+    Tier 2: Flexible enrollment for non-CORE subjects with teacher options.
+    
+    This handles subjects like PE, Art, Music, etc. where students can be
+    assigned to different teacher sections based on availability and preferences.
+    
+    Requirements:
+    - Admin privileges required
+    - Subject must be non-CORE type
+    - Teacher assignments must exist for the subject
+    """
+    try:
+        logger.info(f"Flexible subject enrollment requested by {current_user.email} for subject {subject_id}")
+        
+        enrollment_service = EnrollmentService(session)
+        result = await enrollment_service.flexible_subject_enrollment(
+            subject_id=subject_id,
+            academic_year_id=request.academic_year_id,
+            students=request.students,
+            enrolled_by_user_id=current_user.id,
+            teacher_preferences=request.teacher_preferences,
+            enrollment_options=request.enrollment_options
+        )
+        
+        logger.info(f"Flexible subject enrollment completed: {result.get('summary', {}).get('total_enrollments_created', 0)} enrollments")
+        return FlexibleSubjectEnrollmentResponse(**result)
+        
+    except ValueError as e:
+        logger.warning(f"Invalid flexible enrollment request: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error in flexible subject enrollment: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/special-program", response_model=SpecialProgramEnrollmentResponse)
+async def special_program_enrollment(
+    request: SpecialProgramEnrollmentRequest,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """
+    Tier 3: Individual enrollment for special programs, advanced classes, etc.
+    
+    This handles one-off enrollments that require individual consideration,
+    such as gifted programs, special education, ESL, etc.
+    
+    Requirements:
+    - Admin privileges required
+    - Student must exist and be active
+    - Teacher subject assignment must exist
+    """
+    try:
+        logger.info(f"Special program enrollment requested by {current_user.email}")
+        
+        enrollment_service = EnrollmentService(session)
+        result = await enrollment_service.special_program_enrollment(
+            student_id=request.student_id,
+            teacher_subject_assignment_id=request.teacher_subject_assignment_id,
+            academic_year_id=request.academic_year_id,
+            enrollment_details=request.enrollment_details,
+            enrolled_by_user_id=current_user.id
+        )
+        
+        logger.info(f"Special program enrollment completed for student {request.student_id}")
+        return SpecialProgramEnrollmentResponse(**result)
+        
+    except ValueError as e:
+        logger.warning(f"Invalid special program enrollment request: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error in special program enrollment: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/conflicts/{academic_year_id}", response_model=ConflictDetectionResponse)
+async def detect_enrollment_conflicts(
+    academic_year_id: UUID,
+    grade_level: Optional[str] = Query(None, description="Optional grade level filter"),
+    student_id: Optional[UUID] = Query(None, description="Optional specific student filter"),
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Detect and report enrollment conflicts across the system.
+    
+    This endpoint analyzes enrollments to identify:
+    - Duplicate enrollments
+    - Capacity violations
+    - Schedule conflicts
+    - Missing required subjects
+    """
+    try:
+        logger.info(f"Conflict detection requested by {current_user.email} for academic year {academic_year_id}")
+        
+        enrollment_service = EnrollmentService(session)
+        result = await enrollment_service.detect_enrollment_conflicts(
+            academic_year_id=academic_year_id,
+            grade_level=grade_level,
+            student_id=student_id
+        )
+        
+        logger.info(f"Conflict detection completed: {result.get('summary', {}).get('total_conflicts', 0)} conflicts found")
+        return ConflictDetectionResponse(**result)
+        
+    except Exception as e:
+        logger.error(f"Error detecting enrollment conflicts: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/student/{student_id}/summary", response_model=StudentEnrollmentSummaryResponse)
+async def get_student_enrollment_summary(
+    student_id: UUID,
+    academic_year_id: UUID = Query(..., description="Academic year ID"),
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get comprehensive enrollment summary for a student.
+    
+    This endpoint provides:
+    - All active and inactive enrollments
+    - Enrollments categorized by subject type
+    - Academic performance indicators
+    - Special program participations
+    - Identified conflicts
+    """
+    try:
+        logger.info(f"Student enrollment summary requested by {current_user.email} for student {student_id}")
+        
+        enrollment_service = EnrollmentService(session)
+        result = await enrollment_service.get_student_enrollment_summary(
+            student_id=student_id,
+            academic_year_id=academic_year_id
+        )
+        
+        logger.info(f"Student enrollment summary completed for {result.get('student', {}).get('name', 'Unknown')}")
+        return StudentEnrollmentSummaryResponse(**result)
+        
+    except ValueError as e:
+        logger.warning(f"Invalid enrollment summary request: {str(e)}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error getting student enrollment summary: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Additional utility endpoints for the enhanced enrollment system
+
+@router.get("/tiers/info")
+async def get_enrollment_tiers_info(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get information about the three-tier enrollment system.
+    
+    Returns descriptions and usage guidelines for each enrollment tier.
+    """
+    return {
+        "enrollment_tiers": {
+            "tier_1_core": {
+                "name": "Bulk Homeroom Enrollment",
+                "description": "Bulk enrollment of students in CORE subjects taught by homeroom teachers",
+                "use_case": "Elementary grades (K-5) with homeroom model",
+                "subjects": ["Mathematics", "English Language Arts", "Science", "Social Studies", "Reading"],
+                "automation_level": "Full automation based on homeroom teacher assignments"
+            },
+            "tier_2_flexible": {
+                "name": "Flexible Subject Enrollment",
+                "description": "Flexible enrollment for non-CORE subjects with teacher distribution options",
+                "use_case": "Specialist subjects like PE, Art, Music with multiple sections",
+                "features": ["Teacher preference support", "Capacity-aware distribution", "Load balancing"],
+                "automation_level": "Semi-automated with configuration options"
+            },
+            "tier_3_special": {
+                "name": "Individual Special Program Enrollment",
+                "description": "Individual enrollment for special programs and advanced classes",
+                "use_case": "Gifted programs, special education, ESL, advanced placement",
+                "features": ["Conflict detection", "Special accommodations", "IEP/504 plan support"],
+                "automation_level": "Manual with validation and conflict checking"
+            }
+        },
+        "workflow_recommendations": [
+            "1. Start with Tier 1 for bulk CORE subject enrollment",
+            "2. Use Tier 2 for specialist subjects and electives",
+            "3. Handle special cases with Tier 3 individual enrollment",
+            "4. Run conflict detection after each major enrollment operation",
+            "5. Review student summaries to ensure complete enrollment"
+        ]
+    }

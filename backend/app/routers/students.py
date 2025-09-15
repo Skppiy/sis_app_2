@@ -17,11 +17,14 @@ from ..models.student import Student
 from ..models.student_academic_record import StudentAcademicRecord
 from ..models.academic_year import AcademicYear
 from ..schemas.student import StudentCreate, StudentOut, StudentUpdate, StudentWithDetails
-from ..models.enrollment import Enrollment
+from ..models.student_subject_enrollment import StudentSubjectEnrollment
 from ..models.classroom import Classroom
 from ..models.classroom_teacher_assignment import ClassroomTeacherAssignment
-from ..schemas.enrollment import EnrollmentOut
+from ..schemas.enhanced_enrollment import StudentSubjectEnrollmentOut
 from ..models.school import School
+from ..models.subject import Subject
+from ..models.teacher_subject_assignment import TeacherSubjectAssignment
+from ..models.user import User
 
 router = APIRouter(prefix="/students", tags=["students"])
 
@@ -93,12 +96,12 @@ async def list_students(
                 Student,
                 func.count(
                     case(
-                        (and_(Enrollment.is_active == True, Enrollment.enrollment_status == 'ACTIVE'), 1),
+                        (and_(StudentSubjectEnrollment.is_active == True, StudentSubjectEnrollment.enrollment_status == 'ACTIVE'), 1),
                         else_=None
                     )
                 ).label("active_enrollment_count")
             )
-            .outerjoin(Enrollment, Student.id == Enrollment.student_id)
+            .outerjoin(StudentSubjectEnrollment, Student.id == StudentSubjectEnrollment.student_id)
             .group_by(Student.id)
             .order_by(Student.last_name, Student.first_name)
         )
@@ -157,10 +160,10 @@ async def get_students(
             select(
                 Student,
                 func.coalesce(
-                    func.count(case((Enrollment.is_active == True, 1))), 0
+                    func.count(case((StudentSubjectEnrollment.is_active == True, 1))), 0
                 ).label("enrollment_count")
             )
-            .outerjoin(Enrollment, Student.id == Enrollment.student_id)
+            .outerjoin(StudentSubjectEnrollment, Student.id == StudentSubjectEnrollment.student_id)
             .group_by(Student.id)
             .order_by(Student.last_name, Student.first_name)
         )
@@ -509,7 +512,7 @@ async def debug_student_info(
     except Exception as e:
         return {"error": str(e)}
 
-@router.get("/{student_id}/enrollments", response_model=List[EnrollmentOut])
+@router.get("/{student_id}/enrollments", response_model=List[StudentSubjectEnrollmentOut])
 async def get_student_enrollments(
     student_id: str,  # Changed to string
     academic_year_id: Optional[str] = Query(None, description="Filter by academic year"),
@@ -523,28 +526,54 @@ async def get_student_enrollments(
         student = await session.get(Student, UUID(student_id))
         if not student:
             raise HTTPException(status_code=404, detail="Student not found")
-        
+
         # Build query with FULL relationship loading
-        query = select(Enrollment).options(
-            selectinload(Enrollment.classroom).selectinload(Classroom.subject),
-            selectinload(Enrollment.classroom).selectinload(Classroom.room),
-            selectinload(Enrollment.classroom).selectinload(Classroom.teacher_assignments).selectinload(ClassroomTeacherAssignment.teacher),
-            selectinload(Enrollment.academic_year)
-        ).where(Enrollment.student_id == UUID(student_id))
-        
+        query = select(StudentSubjectEnrollment).options(
+            joinedload(StudentSubjectEnrollment.subject),
+            joinedload(StudentSubjectEnrollment.classroom),
+            joinedload(StudentSubjectEnrollment.teacher_assignment).joinedload(TeacherSubjectAssignment.teacher),
+            joinedload(StudentSubjectEnrollment.academic_year)
+        ).where(StudentSubjectEnrollment.student_id == UUID(student_id))
+
         if academic_year_id:
-            query = query.where(Enrollment.academic_year_id == UUID(academic_year_id))
-        
+            query = query.where(StudentSubjectEnrollment.academic_year_id == UUID(academic_year_id))
+
         if active_only:
-            query = query.where(Enrollment.is_active == True)
-        
-        query = query.order_by(Enrollment.enrollment_date.desc().nullsfirst())
-        
+            query = query.where(StudentSubjectEnrollment.is_active == True)
+
+        query = query.order_by(StudentSubjectEnrollment.enrolled_date.desc())
+
         result = await session.execute(query)
         enrollments = result.scalars().unique().all()
-        
-        return enrollments
-        
+
+        # Transform to match frontend expectations
+        enrollment_data = []
+        for enrollment in enrollments:
+            # Get teacher name from teacher assignment
+            teacher_name = None
+            if enrollment.teacher_assignment and enrollment.teacher_assignment.teacher:
+                teacher_name = f"{enrollment.teacher_assignment.teacher.first_name} {enrollment.teacher_assignment.teacher.last_name}"
+
+            # Get current student grade
+            grade_level = student.current_grade_level if student else None
+
+            enrollment_dict = {
+                "id": enrollment.id,
+                "student_id": enrollment.student_id,
+                "classroom_id": enrollment.classroom_id,
+                "subject_name": enrollment.subject.name if enrollment.subject else "Unknown Subject",
+                "classroom_name": enrollment.classroom.name if enrollment.classroom else "Unknown Classroom",
+                "teacher_name": teacher_name,
+                "grade_level": grade_level,
+                "enrollment_date": enrollment.enrolled_date,
+                "enrollment_status": enrollment.enrollment_status,
+                "is_active": enrollment.is_active,
+                "requires_accommodation": False,  # Can be enhanced later
+            }
+            enrollment_data.append(enrollment_dict)
+
+        return enrollment_data
+
     except HTTPException:
         raise
     except Exception as e:

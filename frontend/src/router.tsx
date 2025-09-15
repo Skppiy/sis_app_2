@@ -96,6 +96,20 @@ const studentsRoute = new Route({
   component: React.lazy(() => import('@/features/enrollment/pages/StudentsPage')),
 });
 
+// Three-Tier Enrollment route (child of app layout)
+const enrollmentRoute = new Route({
+  getParentRoute: () => appLayoutRoute,
+  path: '/enrollment',
+  component: React.lazy(() => import('@/pages/EnrollmentPage')),
+});
+
+// Admin Subject Swaps route (child of app layout)
+const adminSwapsRoute = new Route({
+  getParentRoute: () => appLayoutRoute,
+  path: '/admin/subject-swaps',
+  component: React.lazy(() => import('@/features/academics/pages/AdminSwapsPage')),
+});
+
 // Root redirect to login
 const indexRoute = new Route({
   getParentRoute: () => rootRoute,
@@ -117,7 +131,9 @@ export const routeTree = rootRoute.addChildren([
     classroomsRoute,
     roomsRoute, // Added rooms route
     teachersRoute, // Added teachers route
-    studentsRoute
+    studentsRoute,
+    enrollmentRoute, // Added three-tier enrollment route
+    adminSwapsRoute // Added admin swaps route
   ])
 ]);
 

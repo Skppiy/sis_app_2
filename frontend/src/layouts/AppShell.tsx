@@ -4,7 +4,10 @@ import { Link, Outlet } from '@tanstack/react-router';
 import { useAuth } from '@/auth/AuthContext';
 
 export function AppShell() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+
+  // Check if user has admin permissions
+  const isAdmin = user?.role === 'admin';
 
   const navItems = [
     { to: "/app/dashboard", label: "DASHBOARD" },
@@ -14,6 +17,8 @@ export function AppShell() {
     { to: "/app/rooms", label: "ROOMS" },
     { to: "/app/teachers", label: "TEACHERS" },
     { to: "/app/students", label: "STUDENTS" },
+    { to: "/app/enrollment", label: "ENROLLMENT" },
+    ...(isAdmin ? [{ to: "/app/admin/subject-swaps", label: "SWAP ADMIN" }] : []),
   ];
 
   return (

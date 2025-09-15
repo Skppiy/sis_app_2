@@ -65,4 +65,25 @@ export const queryKeys = {
     detail: (id: string) => ['enrollments', 'detail', id] as const,
     lists: () => ['enrollments', 'list'] as const,
   },
+
+  // Homeroom - Query keys for homeroom intelligence system
+  homeroom: {
+    all: ['homeroom'] as const,
+    preview: (grade: string, teacherId: string, filters?: any) => ['homeroom', 'preview', grade, teacherId, filters] as const,
+    teacherSubjects: (teacherId?: string, filters?: any) => ['homeroom', 'teacher-subjects', teacherId, filters] as const,
+    conflicts: (grade?: string) => ['homeroom', 'conflicts', grade] as const,
+    metrics: () => ['homeroom', 'enrollment-metrics'] as const,
+    lists: () => ['homeroom', 'list'] as const,
+  },
+
+  // Teacher Swaps - Query keys for subject swap system
+  teacherSwaps: {
+    all: ['teacherSwaps'] as const,
+    pending: (teacherId?: string) => ['teacherSwaps', 'pending', teacherId] as const,
+    admin: () => ['teacherSwaps', 'admin'] as const,
+    eligible: (requesterTeacherId?: string, subjectId?: string, academicYearId?: string) => 
+      ['teacherSwaps', 'eligible', requesterTeacherId, subjectId, academicYearId] as const,
+    impact: (payload?: any) => ['teacherSwaps', 'impact', payload] as const,
+    lists: () => ['teacherSwaps'] as const,
+  },
 };

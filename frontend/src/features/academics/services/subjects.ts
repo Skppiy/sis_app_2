@@ -10,6 +10,7 @@ export async function listSubjects(params?: {
   is_active?: boolean;
   grade_band?: string;
   subject_type?: string;
+  include_archived?: boolean;
 }): Promise<Subject[]> {
   const searchParams = new URLSearchParams();
   
@@ -46,4 +47,19 @@ export async function updateSubject(id: string, payload: Partial<Subject>) {
 
 export async function deleteSubject(id: string) {
   await apiFetch<void>(`/subjects/${id}`, { method: "DELETE" });
+}
+
+export async function archiveSubject(id: string, reason?: string) {
+  const data = await apiFetch<unknown>(`/subjects/${id}/archive`, {
+    method: "POST",
+    json: { archive_reason: reason },
+  });
+  return SubjectSchema.parse(data);
+}
+
+export async function restoreSubject(id: string) {
+  const data = await apiFetch<unknown>(`/subjects/${id}/restore`, {
+    method: "POST",
+  });
+  return SubjectSchema.parse(data);
 }

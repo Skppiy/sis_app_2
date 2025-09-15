@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import joinedload, selectinload
-from typing import List
+from typing import List, Optional
 from ..deps import get_db, require_admin, get_current_user
 from ..models.user import User
 from ..models.user_role import UserRole
@@ -11,8 +11,11 @@ from ..models.classroom import Classroom
 from ..models.classroom_teacher_assignment import ClassroomTeacherAssignment
 from ..models.room import Room
 from ..models.enrollment import Enrollment
+from ..models.teacher_subject_assignment import TeacherSubjectAssignment
 from ..schemas.user import UserCreate, UserOut
 from ..security import get_password_hash
+from uuid import UUID
+from typing import Optional
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -71,6 +74,57 @@ async def list_users(session: AsyncSession = Depends(get_db), _: any = Depends(r
         })
     
     return user_data
+
+
+@router.get("/teachers/homeroom")
+async def list_homeroom_teachers(
+    academic_year_id: UUID,
+    school_id: Optional[UUID] = None,
+    grade_level: Optional[str] = None,
+    is_active: bool = True,
+    session: AsyncSession = Depends(get_db),
+    _: any = Depends(require_admin),
+):
+    """Get teachers who have homeroom assignments"""
+    
+    print(f"DEBUG: Homeroom teachers query - academic_year_id: {academic_year_id}, grade_level: {grade_level}")
+    
+    # Simple query for teachers with homeroom assignments
+    query = (
+        select(User.id, User.first_name, User.last_name, User.email, User.is_active)
+        .join(ClassroomTeacherAssignment, ClassroomTeacherAssignment.teacher_user_id == User.id)
+        .join(Classroom, ClassroomTeacherAssignment.classroom_id == Classroom.id)
+        .where(
+            and_(
+                ClassroomTeacherAssignment.role_name.ilike("%homeroom%"),
+                Classroom.academic_year_id == academic_year_id,
+                ClassroomTeacherAssignment.is_active == True,
+                User.is_active == is_active
+            )
+        )
+        .distinct()
+    )
+    
+    # Add optional filters
+    if grade_level:
+        query = query.where(Classroom.grade_level == grade_level)
+    
+    result = await session.execute(query)
+    teachers = result.fetchall()
+    
+    # Build simple teacher data
+    teacher_data = []
+    for teacher in teachers:
+        teacher_data.append({
+            'id': str(teacher.id),
+            'first_name': teacher.first_name,
+            'last_name': teacher.last_name,
+            'email': teacher.email,
+            'is_active': teacher.is_active,
+            'homeroom_assignments': []  # Simplified for now
+        })
+    
+    return teacher_data
 
 
 @router.get("/teachers")

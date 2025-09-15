@@ -19,3 +19,12 @@ from .parent import Parent
 from .parent_student_relationship import ParentStudentRelationship
 from .enrollment import Enrollment
 
+# Homeroom Intelligence System models
+from .teacher_subject_assignment import TeacherSubjectAssignment
+from .student_subject_enrollment import StudentSubjectEnrollment
+from .subject_assignment_event import SubjectAssignmentEvent
+from .teacher_subject_swap import TeacherSubjectSwap
+
+# Enhanced Three-Tier Enrollment System models
+from .special_program import SpecialProgram, SpecialProgramEnrollment
+
