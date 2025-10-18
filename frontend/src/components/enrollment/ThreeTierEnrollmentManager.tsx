@@ -40,7 +40,7 @@ import type { Student } from '@/schemas/students';
 
 // Import workflow-specific components
 import { HomeroomEnrollmentWorkflow } from './workflows/HomeroomEnrollmentWorkflow';
-import { GroupEnrollmentWorkflow } from './workflows/GroupEnrollmentWorkflow';
+import { HomeroomBulkEnrollmentWorkflow } from './workflows/HomeroomBulkEnrollmentWorkflow';
 import { IndividualEnrollmentWorkflow } from './workflows/IndividualEnrollmentWorkflow';
 
 // Types
@@ -104,15 +104,14 @@ export const ThreeTierEnrollmentManager: React.FC<ThreeTierEnrollmentManagerProp
       bestFor: 'Bulk enrollment of students in Math, ELA, Science, Social Studies',
       steps: ['Select Grade Level', 'Choose Homeroom Teacher', 'Select Students', 'Choose CORE Subjects', 'Review & Confirm']
     },
-    // Temporarily disabled until mock data is replaced with real API calls
-    // {
-    //   id: 'group',
-    //   title: 'Group Enrollment', 
-    //   description: 'Enroll groups of students in specials/electives',
-    //   icon: <SchoolIcon />,
-    //   bestFor: 'Art, Music, PE, Library, and other non-CORE subjects',
-    //   steps: ['Select Subject', 'Choose Strategy', 'Create Groups', 'Assign Teachers', 'Balance Classes', 'Confirm']
-    // },
+    {
+      id: 'group',
+      title: 'Bulk Enrollment',
+      description: 'Enroll homeroom population in multiple classrooms',
+      icon: <SchoolIcon />,
+      bestFor: 'Enroll students from one homeroom into multiple available classes for their grade',
+      steps: ['Select Homeroom Population', 'List Available Classrooms', 'Select Multiple Classrooms', 'Review & Confirm']
+    },
     // {
     //   id: 'individual',
     //   title: 'Individual Enrollment',
@@ -338,9 +337,8 @@ export const ThreeTierEnrollmentManager: React.FC<ThreeTierEnrollmentManagerProp
               />
             )}
             
-            {/* Temporarily disabled until mock data is replaced with real API calls */}
-            {/* {selectedWorkflow === 'group' && (
-              <GroupEnrollmentWorkflow
+            {selectedWorkflow === 'group' && (
+              <HomeroomBulkEnrollmentWorkflow
                 students={students}
                 academicYearId={academicYearId}
                 gradeLevel={primaryGradeLevel}
@@ -348,8 +346,9 @@ export const ThreeTierEnrollmentManager: React.FC<ThreeTierEnrollmentManagerProp
                 onCancel={handleBackToSelector}
               />
             )}
-            
-            {selectedWorkflow === 'individual' && (
+
+            {/* Temporarily disabled until implemented */}
+            {/* {selectedWorkflow === 'individual' && (
               <IndividualEnrollmentWorkflow
                 students={students}
                 academicYearId={academicYearId}

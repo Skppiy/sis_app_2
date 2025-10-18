@@ -222,7 +222,10 @@ export default function SubjectSwapDialog({
                             {entry.teacher.first_name} {entry.teacher.last_name}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            Grade {entry.teacher.grade_level} • {entry.compatible_subjects.length} compatible subjects
+                            {entry.teacher.is_specialist ?
+                              `Specialist: ${entry.teacher.specialist_subject || 'General'}` :
+                              `Grade ${entry.teacher.grade_level}`
+                            } • {entry.compatible_subjects.length} compatible subjects
                           </Typography>
                         </Box>
                         <Stack direction="row" spacing={1}>

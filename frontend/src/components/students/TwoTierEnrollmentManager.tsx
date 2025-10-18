@@ -635,7 +635,10 @@ export const TwoTierEnrollmentManager: React.FC<TwoTierEnrollmentManagerProps> =
                                   {teacher.first_name} {teacher.last_name}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                                  Grade {teacher.grade_level} Homeroom Teacher
+                                  {teacher.is_specialist ?
+                                    `Specialist: ${teacher.specialist_subject || 'General'}` :
+                                    `Grade ${teacher.grade_level} Homeroom Teacher`
+                                  }
                                   {teacher.email && ` • ${teacher.email}`}
                                 </Typography>
                                 

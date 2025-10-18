@@ -127,10 +127,10 @@ export default function Dashboard() {
 
   const assignmentCompletionRate = totalStudents > 0 ? Math.round((assignedStudents / totalStudents) * 100) : 0;
 
-  // Get teachers sorted by student count for highlights
+  // Get teachers sorted by class count for highlights
   const teachersByLoad = [...teachers]
-    .filter(t => t.student_count > 0)
-    .sort((a, b) => (b.student_count || 0) - (a.student_count || 0))
+    .filter(t => (t.class_count || t.student_count || 0) > 0)
+    .sort((a, b) => (b.class_count || b.student_count || 0) - (a.class_count || a.student_count || 0))
     .slice(0, 5);
 
   const StatCard = ({ title, value, subtitle, icon, color, action }: {
@@ -283,10 +283,10 @@ export default function Dashboard() {
                             <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
                               {teacher.first_name} {teacher.last_name}
                             </Typography>
-                            <Chip 
-                              size="small" 
-                              label={`${teacher.student_count || 0} students`}
-                              color={teacher.student_count > 25 ? "warning" : "success"}
+                            <Chip
+                              size="small"
+                              label={`${teacher.class_count || teacher.student_count || 0} classes`}
+                              color={(teacher.class_count || teacher.student_count || 0) > 8 ? "warning" : "success"}
                             />
                           </Stack>
                         }

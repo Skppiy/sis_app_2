@@ -26,6 +26,7 @@ async def list_classrooms(
     academic_year_id: Optional[str] = None,
     subject_id: Optional[str] = None,
     teacher_user_id: Optional[str] = None,
+    grade_level: Optional[str] = None,
     session: AsyncSession = Depends(get_db),
     _: any = Depends(get_current_user),
 ):
@@ -52,6 +53,9 @@ async def list_classrooms(
                 ClassroomTeacherAssignment.is_active == True
             )
         )
+
+    if grade_level:
+        query = query.where(Classroom.grade_level == grade_level)
     
     result = await session.execute(query)
     classrooms = result.scalars().all()
@@ -92,51 +96,88 @@ async def list_classrooms(
 async def create_classroom(
     payload: ClassroomCreate,
     session: AsyncSession = Depends(get_db),
-    _: any = Depends(require_admin),
+    current_user: any = Depends(require_admin),
 ):
-    """Create a new classroom with enhanced validation and room assignment"""
-    
+    """Create a new classroom with teacher assignment following homeroom pattern"""
+
     # Validate subject exists
     subject = await session.get(Subject, UUID(payload.subject_id))
     if not subject:
         raise HTTPException(status_code=400, detail="Subject not found")
-    
+
     # Validate academic year exists
     academic_year = await session.get(AcademicYear, UUID(payload.academic_year_id))
     if not academic_year:
         raise HTTPException(status_code=400, detail="Academic year not found")
-    
+
+    # Validate teacher exists
+    teacher = await session.get(User, UUID(payload.teacher_id))
+    if not teacher:
+        raise HTTPException(status_code=400, detail="Teacher not found")
+
     # Validate room exists if provided
     room = None
     if payload.room_id:
         room = await session.get(Room, UUID(payload.room_id))
         if not room:
             raise HTTPException(status_code=400, detail="Room not found")
-    
-    # Create classroom with room assignment
+
+    # Automatically derive classroom type from subject.requires_specialist
+    if subject.requires_specialist:
+        classroom_type = "SPECIALIST"
+    else:
+        classroom_type = "CORE"
+
+    # Create classroom following homeroom pattern
     classroom_data = {
         "id": uuid.uuid4(),
         "name": payload.name,
         "subject_id": UUID(payload.subject_id),
         "academic_year_id": UUID(payload.academic_year_id),
         "grade_level": payload.grade_level,
-        "classroom_type": payload.classroom_type,
+        "classroom_type": classroom_type,
         "max_students": payload.max_students
     }
-    
+
     # Add room assignment if provided
     if room:
         classroom_data["room_id"] = room.id
-    
+
     classroom = Classroom(**classroom_data)
     session.add(classroom)
+    await session.flush()  # Get classroom ID before creating teacher assignment
+
+    # Create teacher assignment following homeroom pattern exactly
+    teacher_assignment = ClassroomTeacherAssignment(
+        classroom_id=classroom.id,
+        teacher_user_id=UUID(payload.teacher_id),
+        role_name="Primary Teacher",  # Consistent role name
+        can_view_grades=True,
+        can_modify_grades=True,
+        can_take_attendance=True,
+        can_view_parent_contact=True,
+        can_create_assignments=True,
+        start_date=academic_year.start_date,
+        is_active=True
+    )
+
+    session.add(teacher_assignment)
     await session.commit()
-    await session.refresh(classroom)
-    
-    # Load related data for response
-    await session.refresh(classroom, ["subject", "academic_year", "room"])
-    
-    return classroom
+
+    # Load the classroom with all relationships using explicit query
+    result = await session.execute(
+        select(Classroom)
+        .options(
+            joinedload(Classroom.subject),
+            joinedload(Classroom.academic_year),
+            joinedload(Classroom.room),
+            selectinload(Classroom.teacher_assignments).joinedload(ClassroomTeacherAssignment.teacher)
+        )
+        .where(Classroom.id == classroom.id)
+    )
+    classroom_with_relations = result.scalar_one()
+
+    return classroom_with_relations
 
 @router.post("/homeroom", response_model=ClassroomOut, status_code=status.HTTP_201_CREATED)
 async def create_homeroom_classroom(

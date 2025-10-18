@@ -46,6 +46,7 @@ import { useYears } from '@/features/academics/hooks/useYears';
 import { useRooms } from '@/features/facilities/hooks/useRooms';
 import { Classroom, ClassroomCreate, GRADE_LEVELS, CORE_SUBJECTS } from '@/schemas/academics';
 import HomeroomCreationDialog from '@/features/academics/components/HomeroomCreationDialog';
+import ClassroomCreateDialog from '@/features/academics/components/ClassroomCreateDialog';
 
 // Helper function to group homeroom classrooms for display
 const groupHomeroomClassrooms = (classrooms: Classroom[]) => {
@@ -457,16 +458,11 @@ export default function ClassroomsPage() {
         />
       </Paper>
 
-      {/* Create Dialog - Placeholder */}
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)}>
-        <DialogTitle>Add Classroom</DialogTitle>
-        <DialogContent>
-          <Typography>Form implementation coming next...</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-        </DialogActions>
-      </Dialog>
+      {/* Create Dialog */}
+      <ClassroomCreateDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+      />
 
       {/* Edit Dialog - Placeholder */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>

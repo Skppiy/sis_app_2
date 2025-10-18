@@ -60,7 +60,15 @@ interface BulkOperationsToolbarProps {
   onBulkEmail?: (studentIds: string[]) => void;
   onBulkSms?: (studentIds: string[]) => void;
   onBulkReport?: (studentIds: string[], reportType: string) => void;
-  availableClassrooms?: Array<{ id: string; name: string; subject?: { name: string } }>;
+  availableClassrooms?: Array<{
+    id: string;
+    name: string;
+    grade_level?: string;
+    subject?: {
+      name: string;
+      subject_type?: string;
+    }
+  }>;
 }
 
 export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
@@ -86,11 +94,41 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
   const [selectedClassroom, setSelectedClassroom] = useState('');
   const [reportType, setReportType] = useState('');
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
+  const [showAllGrades, setShowAllGrades] = useState(false);
 
   const selectedCount = selectedStudents.length;
   const isAllSelected = selectedCount === totalStudents && totalStudents > 0;
   const activeCount = selectedStudents.filter(s => s.is_active).length;
   const inactiveCount = selectedStudents.filter(s => !s.is_active).length;
+
+  // BUSINESS RULE: Filter classrooms based on multiple student selection
+  const filteredClassrooms = React.useMemo(() => {
+    let filtered = [...availableClassrooms];
+
+    // RULE 1: When multiple students are selected, hide CORE subjects
+    // Core subjects should only be enrolled via Homeroom Enrollment workflow
+    if (selectedStudents.length > 1) {
+      filtered = filtered.filter(classroom => {
+        const subjectType = classroom.subject?.subject_type?.toUpperCase();
+        return subjectType !== 'CORE';
+      });
+    }
+
+    // RULE 2: Grade-level filtering (unless "Show All Grades" is enabled)
+    if (!showAllGrades && selectedStudents.length > 0) {
+      const studentGrades = new Set(selectedStudents.map(s => s.current_grade_level));
+      filtered = filtered.filter(classroom => {
+        // If classroom has a grade_level property, check if it matches any student's grade
+        if (classroom.grade_level) {
+          return studentGrades.has(classroom.grade_level);
+        }
+        // If no grade_level specified, show it (could be multi-grade)
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [availableClassrooms, selectedStudents, showAllGrades]);
 
   if (selectedCount === 0) {
     return null;
@@ -354,6 +392,36 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
               You are about to enroll {selectedCount} student{selectedCount > 1 ? 's' : ''} in a classroom.
             </Alert>
 
+            {/* Business Rule Alerts */}
+            {selectedStudents.length > 1 && (
+              <Alert severity="warning" icon={<CheckCircleIcon />}>
+                <Typography variant="subtitle2" gutterBottom>Multiple Student Enrollment</Typography>
+                <Typography variant="body2">
+                  CORE subjects (Math, English, Science, Social Studies, Reading) are hidden because multiple students are selected.
+                  Core subjects should only be enrolled via the Homeroom Enrollment workflow.
+                </Typography>
+              </Alert>
+            )}
+
+            {!showAllGrades && selectedStudents.length > 0 && (
+              <Alert severity="success">
+                <Typography variant="body2">
+                  Showing only classrooms matching student grade levels. Enable "Show all grade levels" to see all classrooms.
+                </Typography>
+              </Alert>
+            )}
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={showAllGrades}
+                  onChange={(e) => setShowAllGrades(e.target.checked)}
+                  size="small"
+                />
+              }
+              label="Show all grade levels (not just student grades)"
+            />
+
             <FormControl fullWidth>
               <InputLabel>Select Classroom</InputLabel>
               <Select
@@ -361,7 +429,15 @@ export const BulkOperationsToolbar: React.FC<BulkOperationsToolbarProps> = ({
                 onChange={(e) => setSelectedClassroom(e.target.value)}
                 label="Select Classroom"
               >
-                {availableClassrooms.map((classroom) => (
+                {filteredClassrooms.length === 0 && (
+                  <MenuItem disabled>
+                    <Typography variant="body2" color="text.secondary">
+                      No classrooms available for the selected students.
+                      {!showAllGrades && ' Try enabling "Show all grade levels".'}
+                    </Typography>
+                  </MenuItem>
+                )}
+                {filteredClassrooms.map((classroom) => (
                   <MenuItem key={classroom.id} value={classroom.id}>
                     <Stack>
                       <Typography variant="body1">{classroom.name}</Typography>

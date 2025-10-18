@@ -26,6 +26,7 @@ import {
   SelectAll as SelectAllIcon,
   ClearAll as ClearAllIcon,
 } from '@mui/icons-material';
+import { useNavigate } from '@tanstack/react-router';
 import { StudentCard } from './StudentCard';
 import { EnhancedStudentCard } from './EnhancedStudentCard';
 import { EnrollmentStatus } from './EnrollmentStatus';
@@ -74,7 +75,7 @@ interface StudentCardWrapperProps {
   academicYearId?: string;
 }
 
-const StudentCardWrapper: React.FC<StudentCardWrapperProps> = ({
+const StudentCardWrapper: React.FC<StudentCardWrapperProps & { onViewDetails?: (studentId: string) => void }> = ({
   student,
   onEdit,
   onDelete,
@@ -84,6 +85,7 @@ const StudentCardWrapper: React.FC<StudentCardWrapperProps> = ({
   onToggleExpand,
   academicYearName,
   academicYearId,
+  onViewDetails,
 }) => {
   // Fetch enrollments for this specific student
   const { data: enrollments = [], isLoading } = useStudentEnrollments(student.id, {
@@ -101,6 +103,7 @@ const StudentCardWrapper: React.FC<StudentCardWrapperProps> = ({
         onExpandEnrollments={onToggleExpand}
         isExpanded={isExpanded}
         enrollmentCount={enrollments.length}
+        onViewDetails={onViewDetails}
       />
       
       {/* Expanded Enrollment Details */}
@@ -146,6 +149,7 @@ export const StudentGrid: React.FC<StudentGridProps> = ({
   onBulkReport,
 }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   
   // State for search, filter, sort, and pagination
   const [searchQuery, setSearchQuery] = useState('');
@@ -275,6 +279,11 @@ export const StudentGrid: React.FC<StudentGridProps> = ({
       setSortField(field);
       setSortOrder('asc');
     }
+  };
+
+  // Handle navigation to student detail page
+  const handleViewDetails = (studentId: string) => {
+    navigate({ to: '/app/students/$studentId', params: { studentId } });
   };
 
   // Render loading skeleton
@@ -539,6 +548,7 @@ export const StudentGrid: React.FC<StudentGridProps> = ({
                       onToggleExpand={handleToggleExpand}
                       academicYearName={academicYearName}
                       academicYearId={academicYearId}
+                      onViewDetails={handleViewDetails}
                     />
                   </Box>
                 )}

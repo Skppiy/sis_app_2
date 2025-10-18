@@ -40,6 +40,24 @@ import {
   Subject as SubjectIcon,
 } from '@mui/icons-material';
 import type { Student } from '@/schemas/students';
+import type { Classroom } from '@/schemas/academics';
+import { useClassrooms } from '@/features/academics/hooks/useClassrooms';
+import { useBulkClassroomEnrollment } from '@/features/enrollment/hooks/useStudents';
+
+// Helper function to create descriptive classroom display name
+const getClassroomDisplayName = (classroom: Classroom): string => {
+  const teacherName = classroom.teacher_assignments?.[0]?.teacher
+    ? `${classroom.teacher_assignments[0].teacher.first_name} ${classroom.teacher_assignments[0].teacher.last_name}'s`
+    : '';
+  const gradeName = classroom.grade_level ? `Grade ${classroom.grade_level}` : '';
+  const subjectName = classroom.subject?.name || 'Unknown Subject';
+  const roomName = classroom.room?.name ? `(Room ${classroom.room.name})` : '';
+  const enrollmentInfo = classroom.max_students
+    ? `[${classroom.enrollment_count || 0}/${classroom.max_students} students]`
+    : `[${classroom.enrollment_count || 0} students]`;
+
+  return `${teacherName} ${gradeName} ${subjectName} ${roomName} ${enrollmentInfo}`.trim();
+};
 
 interface IndividualEnrollmentWorkflowProps {
   students: Student[];
@@ -95,6 +113,7 @@ export const IndividualEnrollmentWorkflow: React.FC<IndividualEnrollmentWorkflow
   const [detectedConflicts, setDetectedConflicts] = useState<Conflict[]>([]);
   const [selectedAccommodations, setSelectedAccommodations] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+
 
   // Mock data - replace with actual API calls
   const mockClasses: Class[] = [
@@ -252,9 +271,14 @@ export const IndividualEnrollmentWorkflow: React.FC<IndividualEnrollmentWorkflow
   const handleEnrollmentSubmit = async () => {
     setLoading(true);
     try {
-      // Simulate API call
+      if (!selectedStudent || !selectedClass) {
+        throw new Error('Student and class must be selected');
+      }
+
+      // This is still a mock implementation for now
+      // In a real implementation, this would call the actual enrollment service
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       onComplete({ enrollmentCount: 1, studentsAffected: 1 });
     } catch (error) {
       console.error('Enrollment failed:', error);

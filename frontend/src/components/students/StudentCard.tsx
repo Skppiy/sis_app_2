@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -10,6 +10,8 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  Button,
+  Badge,
   alpha,
   useTheme,
 } from '@mui/material';
@@ -21,9 +23,15 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   PersonAdd as PersonAddIcon,
+  LocalHospital as ServiceIcon,
+  Add as AddIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { Student, GRADE_LEVELS } from '@/schemas/students';
+import { useStudentAccommodationStatus, useStudentServices } from '@/features/academics/hooks/useStudentServices';
+import { getSeverityColor, formatSeverityLevel } from '@/features/academics/services/studentServices';
+import StudentServiceAssignmentDialog from '@/features/academics/components/StudentServiceAssignmentDialog';
 
 interface StudentCardProps {
   student: Student;
@@ -31,6 +39,7 @@ interface StudentCardProps {
   onDelete: (student: Student) => void;
   onEnroll: (student: Student) => void;
   onExpandEnrollments: (studentId: string) => void;
+  onViewDetails?: (studentId: string) => void;
   isExpanded: boolean;
   enrollmentCount?: number;
 }
@@ -41,10 +50,18 @@ export const StudentCard: React.FC<StudentCardProps> = ({
   onDelete,
   onEnroll,
   onExpandEnrollments,
+  onViewDetails,
   isExpanded,
   enrollmentCount = 0,
 }) => {
   const theme = useTheme();
+  const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
+
+  // Student Services integration
+  const { requiresAccommodation, activeServicesCount, isLoading: servicesLoading } = useStudentAccommodationStatus(student.id);
+  const { assignments, availableTags, deleteAssignment, isDeletingAssignment } = useStudentServices(student.id);
+
+  const activeAssignments = assignments.filter(a => a.is_active);
   
   // Generate initials for avatar
   const getInitials = (firstName: string, lastName: string) => {
@@ -121,14 +138,22 @@ export const StudentCard: React.FC<StudentCardProps> = ({
           </Avatar>
           
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography 
-              variant="h6" 
-              sx={{ 
+            <Typography
+              variant="h6"
+              sx={{
                 fontWeight: 600,
-                color: theme.palette.text.primary,
+                color: onViewDetails ? theme.palette.primary.main : theme.palette.text.primary,
                 mb: 0.5,
                 fontSize: '1.1rem',
+                cursor: onViewDetails ? 'pointer' : 'default',
+                textDecoration: 'none',
+                '&:hover': onViewDetails ? {
+                  textDecoration: 'underline',
+                  color: theme.palette.primary.dark,
+                } : {},
+                transition: 'color 0.2s ease',
               }}
+              onClick={onViewDetails ? () => onViewDetails(student.id) : undefined}
             >
               {student.first_name} {student.last_name}
             </Typography>
@@ -295,6 +320,131 @@ export const StudentCard: React.FC<StudentCardProps> = ({
           )}
         </Stack>
 
+        {/* Student Services Section */}
+        {!servicesLoading && (
+          <Box sx={{ mt: 2 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Badge
+                  badgeContent={requiresAccommodation ? activeServicesCount : null}
+                  color="primary"
+                  variant="dot"
+                >
+                  <ServiceIcon
+                    sx={{
+                      fontSize: 16,
+                      color: requiresAccommodation ? theme.palette.primary.main : theme.palette.text.secondary
+                    }}
+                  />
+                </Badge>
+                <Typography
+                  variant="body2"
+                  fontWeight={500}
+                  color={requiresAccommodation ? 'primary.main' : 'text.secondary'}
+                  sx={{ fontSize: '0.85rem' }}
+                >
+                  Student Services
+                </Typography>
+                {requiresAccommodation && (
+                  <Chip
+                    label={`${activeServicesCount} Active`}
+                    size="small"
+                    color="success"
+                    sx={{ fontSize: '0.7rem', height: 18 }}
+                  />
+                )}
+              </Stack>
+
+              <Tooltip title="Assign Service" placement="top">
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setAssignmentDialogOpen(true);
+                  }}
+                  sx={{
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.primary.main, 0.2),
+                      transform: 'scale(1.1)',
+                    },
+                  }}
+                >
+                  <AddIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+
+            {/* Active Services Display */}
+            {activeAssignments.length > 0 && (
+              <Stack spacing={0.5} sx={{ mb: 1 }}>
+                {activeAssignments.slice(0, 3).map(assignment => (
+                  <Box key={assignment.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Chip
+                        label={assignment.tag?.tag_name || 'Unknown Service'}
+                        size="small"
+                        color={getSeverityColor(assignment.severity_level)}
+                        variant="outlined"
+                        sx={{ fontSize: '0.7rem', height: 20 }}
+                      />
+                      {assignment.severity_level && (
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontSize: '0.7rem' }}
+                        >
+                          {formatSeverityLevel(assignment.severity_level)}
+                        </Typography>
+                      )}
+                    </Stack>
+                    <Tooltip title="Remove Service" placement="top">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Remove ${assignment.tag?.tag_name} service?`)) {
+                            deleteAssignment(assignment.id);
+                          }
+                        }}
+                        disabled={isDeletingAssignment}
+                        sx={{
+                          opacity: 0.6,
+                          '&:hover': {
+                            opacity: 1,
+                            bgcolor: alpha(theme.palette.error.main, 0.1)
+                          },
+                        }}
+                      >
+                        <DeleteIcon sx={{ fontSize: 12 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ))}
+                {activeAssignments.length > 3 && (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontSize: '0.7rem', fontStyle: 'italic' }}
+                  >
+                    +{activeAssignments.length - 3} more service{activeAssignments.length - 3 !== 1 ? 's' : ''}
+                  </Typography>
+                )}
+              </Stack>
+            )}
+
+            {!requiresAccommodation && availableTags.length === 0 && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: '0.75rem', fontStyle: 'italic' }}
+              >
+                No services available
+              </Typography>
+            )}
+          </Box>
+        )}
+
         {/* Enrollment Status Footer */}
         <Box
           sx={{
@@ -342,6 +492,14 @@ export const StudentCard: React.FC<StudentCardProps> = ({
           </Stack>
         </Box>
       </CardContent>
+
+      {/* Student Service Assignment Dialog */}
+      <StudentServiceAssignmentDialog
+        open={assignmentDialogOpen}
+        onClose={() => setAssignmentDialogOpen(false)}
+        studentId={student.id}
+        studentName={`${student.first_name} ${student.last_name}`}
+      />
     </Card>
   );
 };

@@ -14,6 +14,7 @@ export function useClassrooms(params?: {
   academic_year_id?: string;
   subject_id?: string;
   teacher_user_id?: string;
+  grade_level?: string;
 }) {
   return useQuery({
     queryKey: queryKeys.classrooms.list(params),

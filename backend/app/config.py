@@ -1,4 +1,8 @@
-from pydantic import BaseSettings, validator
+try:
+    from pydantic_settings import BaseSettings
+except ImportError:
+    from pydantic import BaseSettings
+from pydantic import validator
 from functools import lru_cache
 from typing import List
 

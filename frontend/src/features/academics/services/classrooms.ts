@@ -14,6 +14,7 @@ export async function listClassrooms(params?: {
   academic_year_id?: string;
   subject_id?: string;
   teacher_user_id?: string;
+  grade_level?: string;
 }): Promise<Classroom[]> {
   const searchParams = new URLSearchParams();
   
@@ -42,7 +43,19 @@ export async function createClassroom(payload: ClassroomCreate): Promise<Classro
     method: "POST",
     json: payload,
   });
-  return ClassroomSchema.parse(data);
+
+  // Debug logging to identify schema mismatch
+  console.log("Backend response data:", data);
+
+  try {
+    const parsed = ClassroomSchema.parse(data);
+    console.log("Successfully parsed classroom:", parsed);
+    return parsed;
+  } catch (error) {
+    console.error("Schema validation error:", error);
+    console.error("Raw data that failed parsing:", data);
+    throw error;
+  }
 }
 
 export async function updateClassroom(id: string, payload: ClassroomUpdate): Promise<Classroom> {

@@ -54,6 +54,29 @@ export const EnrollmentSchema = z.object({
   withdrawal_reason: z.string().nullable().optional(),
   is_audit_only: z.boolean().default(false),
   requires_accommodation: z.boolean().default(false),
+  enrolled_by: z.string().uuid().nullable().optional(),
+  // Optional classroom details for display purposes
+  classroom: z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+    subject: z.object({
+      id: z.string().uuid(),
+      name: z.string(),
+      code: z.string(),
+      subject_type: z.string(),
+    }).nullable().optional(),
+    teacher_assignments: z.array(z.object({
+      teacher: z.object({
+        id: z.string().uuid(),
+        first_name: z.string(),
+        last_name: z.string(),
+      }).nullable().optional(),
+    })).default([]),
+    room: z.object({
+      id: z.string().uuid(),
+      name: z.string(),
+    }).nullable().optional(),
+  }).nullable().optional(),
 });
 
 export const EnrollmentCreateSchema = z.object({

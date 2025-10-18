@@ -14,10 +14,15 @@ class ClassroomBase(BaseModel):
     classroom_type: str = "CORE"  # CORE, ENRICHMENT, SPECIAL
     max_students: Optional[int] = None
 
-class ClassroomCreate(ClassroomBase):
+class ClassroomCreate(BaseModel):
+    name: str
+    grade_level: str  # "K", "1", "2"..."8", "MULTI"
+    max_students: Optional[int] = None
     subject_id: str
     academic_year_id: str
     room_id: Optional[str] = None  # ADDED: Room assignment
+    teacher_id: str  # ADDED: Teacher assignment (required like homeroom pattern)
+    # Note: classroom_type is auto-derived from subject.requires_specialist
 
 class ClassroomUpdate(BaseModel):
     name: Optional[str] = None

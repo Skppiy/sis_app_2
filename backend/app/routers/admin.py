@@ -10,7 +10,7 @@ from ..models.school import School
 from ..models.classroom import Classroom
 from ..models.classroom_teacher_assignment import ClassroomTeacherAssignment
 from ..models.room import Room
-from ..models.enrollment import Enrollment
+from ..models.student_subject_enrollment import StudentSubjectEnrollment
 from ..models.teacher_subject_assignment import TeacherSubjectAssignment
 from ..schemas.user import UserCreate, UserOut
 from ..security import get_password_hash
@@ -179,30 +179,21 @@ async def list_teachers(
         # Analyze teacher assignments to determine type and room assignments
         homeroom_assignment = None
         specialist_assignment = None
-        total_students = 0
-        
+        total_classes = len(assignments)  # SME-approved: Count classes, not students
+
         for assignment in assignments:
             classroom = assignment.classroom
-            
-            # Count students in this classroom
-            student_count_query = select(func.count(Enrollment.id)).where(
-                and_(
-                    Enrollment.classroom_id == classroom.id,
-                    Enrollment.is_active == True
-                )
-            )
-            student_count = (await session.execute(student_count_query)).scalar() or 0
-            total_students += student_count
-            
-            # Classify as homeroom or specialist based on role and classroom type
-            if (assignment.role_name.lower().find("homeroom") >= 0 or 
-                classroom.classroom_type == "HOMEROOM" or
-                assignment.role_name.lower().find("primary") >= 0):
-                homeroom_assignment = assignment
-            elif (classroom.subject and 
-                  (classroom.subject.requires_specialist or 
-                   assignment.role_name.lower().find("specialist") >= 0)):
+
+            # Classify as homeroom or specialist based on classroom type and subject FIRST
+            # Then fall back to role names (which can be misleading)
+            if (classroom.subject and classroom.subject.requires_specialist) or classroom.classroom_type == "SPECIALIST":
                 specialist_assignment = assignment
+            elif classroom.classroom_type == "HOMEROOM" or assignment.role_name.lower().find("homeroom") >= 0:
+                homeroom_assignment = assignment
+            elif assignment.role_name.lower().find("specialist") >= 0:
+                specialist_assignment = assignment
+            elif assignment.role_name.lower().find("primary") >= 0:
+                homeroom_assignment = assignment
         
         # Build teacher response data matching frontend TeacherSchema
         teacher_response = {
@@ -211,26 +202,34 @@ async def list_teachers(
             "last_name": teacher.last_name,
             "email": teacher.email,
             "is_active": teacher.is_active,
-            "student_count": total_students,
+            "student_count": total_classes,  # Legacy field name for compatibility
+            "class_count": total_classes,    # SME-approved: Show number of classes for workload visibility
             "is_specialist": specialist_assignment is not None,
         }
         
-        # Add homeroom data if applicable
-        if homeroom_assignment:
-            classroom = homeroom_assignment.classroom
-            teacher_response.update({
-                "grade_level": classroom.grade_level,
-                "homeroom_id": str(classroom.room_id) if classroom.room else None,
-                "homeroom_name": classroom.room.name if classroom.room else None,
-            })
-        
-        # Add specialist data if applicable  
+        # Prioritize specialist assignments over homeroom assignments
+        # If a teacher has both types, they should be classified as a specialist
         if specialist_assignment:
             classroom = specialist_assignment.classroom
             teacher_response.update({
                 "specialist_subject": classroom.subject.name if classroom.subject else None,
                 "specialist_room_id": str(classroom.room_id) if classroom.room else None,
                 "specialist_room_name": classroom.room.name if classroom.room else None,
+                # Ensure specialist teachers don't have homeroom data that could cause display confusion
+                "grade_level": None,
+                "homeroom_id": None,
+                "homeroom_name": None,
+            })
+        elif homeroom_assignment:
+            classroom = homeroom_assignment.classroom
+            teacher_response.update({
+                "grade_level": classroom.grade_level,
+                "homeroom_id": str(classroom.room_id) if classroom.room else None,
+                "homeroom_name": classroom.room.name if classroom.room else None,
+                # Ensure homeroom teachers don't have specialist data
+                "specialist_subject": None,
+                "specialist_room_id": None,
+                "specialist_room_name": None,
             })
         
         # Ensure all expected fields are present (with None for missing values)

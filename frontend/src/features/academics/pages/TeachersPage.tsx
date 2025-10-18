@@ -49,6 +49,7 @@ import {
 } from '@mui/icons-material';
 
 import { useAuth } from '@/auth/AuthContext';
+import { useNavigate } from '@tanstack/react-router';
 import { 
   useTeachers, 
   useCreateTeacher, 
@@ -62,6 +63,7 @@ import { GRADE_LEVELS, getTeacherRoomDisplay, getTeacherSubjectDisplay } from '@
 export default function TeachersPage() {
   const { activeSchool } = useAuth();
   const theme = useTheme();
+  const navigate = useNavigate();
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -132,6 +134,11 @@ export default function TeachersPage() {
     } catch (error) {
       console.error('Failed to delete teacher:', error);
     }
+  };
+
+  // Handle teacher detail navigation
+  const handleTeacherClick = (teacherId: string) => {
+    navigate({ to: '/app/teachers/$teacherId', params: { teacherId } });
   };
 
   // Helper function to get teacher icon
@@ -295,10 +302,10 @@ export default function TeachersPage() {
             label={`Homeroom (${homeroomTeachers.length})`} 
             sx={{ fontWeight: 600 }} 
           />
-          <Tab 
-            icon={<PEIcon />} 
-            label={`Specialists (${specialistTeachers.length})`} 
-            sx={{ fontWeight: 600 }} 
+          <Tab
+            icon={<PEIcon />}
+            label={`Subject Teachers (${specialistTeachers.length})`}
+            sx={{ fontWeight: 600 }}
           />
           <Tab 
             icon={<RoomIcon />} 
@@ -322,11 +329,14 @@ export default function TeachersPage() {
             {currentTabTeachers.map((teacher, index) => (
               <ListItem
                 key={teacher.id}
+                button
+                onClick={() => handleTeacherClick(teacher.id)}
                 sx={{
                   borderBottom: index < currentTabTeachers.length - 1 ? 1 : 0,
                   borderColor: 'divider',
                   py: 2,
                   px: 3,
+                  cursor: 'pointer',
                   '&:hover': {
                     backgroundColor: alpha(theme.palette.primary.main, 0.04),
                   },
@@ -359,7 +369,7 @@ export default function TeachersPage() {
                       )}
                       {teacher.is_specialist && (
                         <Chip
-                          label={`Specialist: ${getTeacherSubjectDisplay(teacher).replace('Grade ', '')}`}
+                          label={`Subject: ${getTeacherSubjectDisplay(teacher).replace('Grade ', '')}`}
                           size="small"
                           color="secondary"
                           sx={{ fontSize: '0.7rem' }}
@@ -385,16 +395,23 @@ export default function TeachersPage() {
                   }
                   secondary={
                     <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        <strong>Grade:</strong> {getGradeLabel(teacher.grade_level)}
-                      </Typography>
+                      {!teacher.is_specialist && teacher.grade_level && (
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Grade:</strong> {getGradeLabel(teacher.grade_level)}
+                        </Typography>
+                      )}
+                      {teacher.is_specialist && teacher.specialist_subject && (
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Subject:</strong> {teacher.specialist_subject}
+                        </Typography>
+                      )}
                       <Typography variant="body2" color="text.secondary">
                         <strong>Room:</strong> {getTeacherRoomDisplay(teacher)}
                       </Typography>
                       <Stack direction="row" alignItems="center" spacing={1}>
                         <StudentsIcon sx={{ fontSize: 16 }} />
                         <Typography variant="body2" color="text.secondary">
-                          <strong>{dataEnrichmentLoading ? '...' : (teacher.student_count || 0)}</strong> students
+                          <strong>{dataEnrichmentLoading ? '...' : (teacher.class_count || teacher.student_count || 0)}</strong> classes
                         </Typography>
                       </Stack>
                     </Stack>

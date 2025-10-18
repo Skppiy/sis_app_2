@@ -273,7 +273,7 @@ async def delete_enrollment(
         raise HTTPException(status_code=500, detail=f"Failed to delete enrollment: {str(e)}")
 
 # Student enrollment endpoints
-@router.get("/students/{student_id}/enrollments", response_model=List[EnrollmentOut])
+@router.get("/students/{student_id}/enrollments")
 async def get_student_enrollments(
     student_id: str,
     session: AsyncSession = Depends(get_db),
@@ -292,13 +292,71 @@ async def get_student_enrollments(
         # Get enrollments with classroom details
         result = await session.execute(
             select(Enrollment)
-            .options(selectinload(Enrollment.classroom))
+            .options(
+                selectinload(Enrollment.classroom).selectinload(Classroom.subject),
+                selectinload(Enrollment.classroom).selectinload(Classroom.room),
+                selectinload(Enrollment.classroom).selectinload(Classroom.teacher_assignments).selectinload(ClassroomTeacherAssignment.teacher)
+            )
             .where(Enrollment.student_id == UUID(student_id))
             .order_by(Enrollment.id.desc())
         )
         enrollments = result.scalars().all()
-        
-        return enrollments
+
+        # Debug logging
+        print(f"DEBUG: Found {len(enrollments)} enrollments for student {student_id}")
+        for enrollment in enrollments:
+            print(f"  - Enrollment {enrollment.id}, classroom: {enrollment.classroom}")
+            if enrollment.classroom:
+                print(f"    - Classroom name: {enrollment.classroom.name}")
+                print(f"    - Subject: {enrollment.classroom.subject}")
+            else:
+                print(f"    - No classroom found for enrollment {enrollment.id}")
+
+        # Create custom response with classroom details
+        enrollment_data = []
+        for enrollment in enrollments:
+            enrollment_dict = {
+                "id": str(enrollment.id),
+                "student_id": str(enrollment.student_id),
+                "classroom_id": str(enrollment.classroom_id),
+                "academic_year_id": str(enrollment.academic_year_id) if enrollment.academic_year_id else None,
+                "grade_level": enrollment.grade_level,
+                "enrollment_date": enrollment.enrollment_date.isoformat() if enrollment.enrollment_date else None,
+                "withdrawal_date": enrollment.withdrawal_date.isoformat() if enrollment.withdrawal_date else None,
+                "enrollment_status": enrollment.enrollment_status,
+                "is_active": enrollment.is_active,
+                "withdrawal_reason": enrollment.withdrawal_reason,
+                "is_audit_only": enrollment.is_audit_only,
+                "requires_accommodation": enrollment.requires_accommodation,
+                "enrolled_by": str(enrollment.enrolled_by) if enrollment.enrolled_by else None,
+                # Add classroom details
+                "classroom": {
+                    "id": str(enrollment.classroom.id),
+                    "name": enrollment.classroom.name,
+                    "subject": {
+                        "id": str(enrollment.classroom.subject.id),
+                        "name": enrollment.classroom.subject.name,
+                        "code": enrollment.classroom.subject.code,
+                        "subject_type": enrollment.classroom.subject.subject_type,
+                    } if enrollment.classroom.subject else None,
+                    "room": {
+                        "id": str(enrollment.classroom.room.id),
+                        "name": enrollment.classroom.room.name,
+                    } if enrollment.classroom.room else None,
+                    "teacher_assignments": [
+                        {
+                            "teacher": {
+                                "id": str(assignment.teacher.id),
+                                "first_name": assignment.teacher.first_name,
+                                "last_name": assignment.teacher.last_name,
+                            } if assignment.teacher else None
+                        } for assignment in enrollment.classroom.teacher_assignments if assignment.teacher
+                    ] if enrollment.classroom.teacher_assignments else []
+                } if enrollment.classroom else None
+            }
+            enrollment_data.append(enrollment_dict)
+
+        return enrollment_data
         
     except HTTPException:
         raise

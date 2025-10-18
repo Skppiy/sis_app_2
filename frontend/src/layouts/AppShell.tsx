@@ -16,6 +16,7 @@ export function AppShell() {
     { to: "/app/classrooms", label: "CLASSROOMS" },
     { to: "/app/rooms", label: "ROOMS" },
     { to: "/app/teachers", label: "TEACHERS" },
+    { to: "/app/student-services", label: "STUDENT SERVICES" },
     { to: "/app/students", label: "STUDENTS" },
     { to: "/app/enrollment", label: "ENROLLMENT" },
     ...(isAdmin ? [{ to: "/app/admin/subject-swaps", label: "SWAP ADMIN" }] : []),

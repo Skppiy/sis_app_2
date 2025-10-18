@@ -54,11 +54,12 @@ import { Student, GRADE_LEVELS } from '@/schemas/students';
 interface Classroom {
   id: string;
   name: string;
-  subject?: { name: string };
+  subject?: { name: string; subject_type?: string };
   room?: { name: string };
   capacity?: number;
   enrolled_count?: number;
   grade_levels?: string[];
+  grade_level?: string;
   academic_year_id?: string;
   teacher?: { first_name: string; last_name: string };
 }
@@ -100,12 +101,42 @@ export const EnhancedEnrollmentManager: React.FC<EnhancedEnrollmentManagerProps>
   const [isProcessing, setIsProcessing] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [showAllGrades, setShowAllGrades] = useState(false);
 
   const steps = [
     'Select Classrooms',
     'Configure Enrollments',
     'Review & Confirm',
   ];
+
+  // BUSINESS RULE: Filter classrooms based on multiple student selection
+  const filteredClassrooms = React.useMemo(() => {
+    let filtered = [...classrooms];
+
+    // RULE 1: When multiple students are selected, hide CORE subjects
+    // Core subjects should only be enrolled via Homeroom Enrollment workflow
+    if (students.length > 1) {
+      filtered = filtered.filter(classroom => {
+        const subjectType = classroom.subject?.subject_type?.toUpperCase();
+        return subjectType !== 'CORE';
+      });
+    }
+
+    // RULE 2: Grade-level filtering (unless "Show All Grades" is enabled)
+    if (!showAllGrades && students.length > 0) {
+      const studentGrades = new Set(students.map(s => s.current_grade_level));
+      filtered = filtered.filter(classroom => {
+        // If classroom has a grade_level property, check if it matches any student's grade
+        if (classroom.grade_level) {
+          return studentGrades.has(classroom.grade_level);
+        }
+        // If no grade_level specified, show it (could be multi-grade)
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [classrooms, students, showAllGrades]);
 
   // Validation functions
   const validateClassroomCapacity = (classroom: Classroom, studentCount: number) => {
@@ -328,39 +359,78 @@ export const EnhancedEnrollmentManager: React.FC<EnhancedEnrollmentManagerProps>
                 {/* Quick Settings */}
                 <Paper sx={{ p: 2, bgcolor: alpha(theme.palette.background.default, 0.5) }}>
                   <Typography variant="subtitle2" sx={{ mb: 2 }}>Quick Settings</Typography>
-                  <Stack direction="row" spacing={2}>
-                    <TextField
-                      label="Default Enrollment Date"
-                      type="date"
-                      value={enrollmentDate}
-                      onChange={(e) => setEnrollmentDate(e.target.value)}
-                      InputLabelProps={{ shrink: true }}
-                      size="small"
-                      sx={{ minWidth: 180 }}
+                  <Stack spacing={2}>
+                    <Stack direction="row" spacing={2}>
+                      <TextField
+                        label="Default Enrollment Date"
+                        type="date"
+                        value={enrollmentDate}
+                        onChange={(e) => setEnrollmentDate(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        size="small"
+                        sx={{ minWidth: 180 }}
+                      />
+                      <FormControl size="small" sx={{ minWidth: 150 }}>
+                        <InputLabel>Default Grade</InputLabel>
+                        <Select
+                          value={defaultGradeLevel}
+                          onChange={(e) => setDefaultGradeLevel(e.target.value)}
+                          label="Default Grade"
+                        >
+                          {GRADE_LEVELS.map(grade => (
+                            <MenuItem key={grade.value} value={grade.value}>
+                              {grade.label}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Stack>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={showAllGrades}
+                          onChange={(e) => setShowAllGrades(e.target.checked)}
+                          size="small"
+                        />
+                      }
+                      label="Show all grade levels (not just student grades)"
                     />
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
-                      <InputLabel>Default Grade</InputLabel>
-                      <Select
-                        value={defaultGradeLevel}
-                        onChange={(e) => setDefaultGradeLevel(e.target.value)}
-                        label="Default Grade"
-                      >
-                        {GRADE_LEVELS.map(grade => (
-                          <MenuItem key={grade.value} value={grade.value}>
-                            {grade.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
                   </Stack>
                 </Paper>
 
+                {/* Business Rule Alerts */}
+                {students.length > 1 && (
+                  <Alert severity="info" icon={<InfoIcon />}>
+                    <Typography variant="subtitle2" gutterBottom>Multiple Student Enrollment</Typography>
+                    <Typography variant="body2">
+                      CORE subjects (Math, English, Science, Social Studies) are hidden because multiple students are selected.
+                      Core subjects should only be enrolled via the Homeroom Enrollment workflow.
+                    </Typography>
+                  </Alert>
+                )}
+
+                {!showAllGrades && students.length > 0 && (
+                  <Alert severity="success" icon={<CheckCircleIcon />}>
+                    <Typography variant="body2">
+                      Showing only classrooms matching student grade levels. Enable "Show all grade levels" to see all classrooms.
+                    </Typography>
+                  </Alert>
+                )}
+
                 {/* Classroom List */}
                 <Stack spacing={1} sx={{ maxHeight: 400, overflowY: 'auto' }}>
-                  {classrooms.map(classroom => {
+                  {filteredClassrooms.length === 0 && (
+                    <Alert severity="warning">
+                      <Typography variant="body2">
+                        No classrooms available for the selected students.
+                        {!showAllGrades && ' Try enabling "Show all grade levels" to see more options.'}
+                      </Typography>
+                    </Alert>
+                  )}
+                  {filteredClassrooms.map(classroom => {
                     const isSelected = selectedClassrooms.has(classroom.id);
                     const capacityIssue = !validateClassroomCapacity(classroom, students.length);
-                    
+
                     return (
                       <Paper
                         key={classroom.id}
@@ -512,6 +582,7 @@ export const EnhancedEnrollmentManager: React.FC<EnhancedEnrollmentManagerProps>
                             </Select>
                           </FormControl>
 
+                          {/* Hidden for K-8 simplicity - audit_only functionality preserved in backend */}
                           <FormControlLabel
                             control={
                               <Checkbox
@@ -523,6 +594,7 @@ export const EnhancedEnrollmentManager: React.FC<EnhancedEnrollmentManagerProps>
                               />
                             }
                             label="Audit Only"
+                            style={{ display: 'none' }}
                           />
 
                           <FormControlLabel
@@ -651,7 +723,7 @@ export const EnhancedEnrollmentManager: React.FC<EnhancedEnrollmentManagerProps>
                             {enrollment.students.length} student{enrollment.students.length > 1 ? 's' : ''} • 
                             Grade {enrollment.grade_level} • 
                             {format(new Date(enrollment.enrollment_date), 'MMM dd, yyyy')}
-                            {enrollment.is_audit_only && ' • Audit Only'}
+                            {/* Hidden for K-8 simplicity: {enrollment.is_audit_only && ' • Audit Only'} */}
                             {enrollment.requires_accommodation && ' • Requires Accommodation'}
                           </Typography>
                         </Box>

@@ -16,9 +16,9 @@ from pydantic import BaseModel
 
 class StudentServiceTagCreate(BaseModel):
     tag_name: str
-    category: str = "ACADEMIC"
+    tag_code: str
     description: Optional[str] = None
-    school_id: str
+    school_id: Optional[str] = None
 
 class StudentServiceTagOut(BaseModel):
     id: UUID
@@ -99,7 +99,7 @@ async def create_student_service_tag(
         existing_tag = await session.execute(
             select(SpecialNeedsTagLibrary).where(
                 and_(
-                    (SpecialNeedsTagLibrary.school_id == UUID(payload.school_id)) |
+                    (SpecialNeedsTagLibrary.school_id == UUID(payload.school_id) if payload.school_id else None) |
                     (SpecialNeedsTagLibrary.school_id.is_(None)),
                     SpecialNeedsTagLibrary.tag_name == payload.tag_name,
                     SpecialNeedsTagLibrary.is_active == True
@@ -112,16 +112,13 @@ async def create_student_service_tag(
                 detail=f"A tag named '{payload.tag_name}' already exists"
             )
         
-        # Generate tag_code from tag_name
-        tag_code = payload.tag_name.upper().replace(" ", "_")[:20]
-        
         # Create new tag using your actual model structure
         new_tag = SpecialNeedsTagLibrary(
             id=uuid.uuid4(),
             tag_name=payload.tag_name,
-            tag_code=tag_code,
+            tag_code=payload.tag_code,
             description=payload.description,
-            school_id=UUID(payload.school_id),
+            school_id=UUID(payload.school_id) if payload.school_id else None,
             is_active=True
         )
         

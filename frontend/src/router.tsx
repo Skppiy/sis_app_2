@@ -89,11 +89,31 @@ const teachersRoute = new Route({
   component: React.lazy(() => import('@/features/academics/pages/TeachersPage')),
 });
 
+const teacherDetailRoute = new Route({
+  getParentRoute: () => appLayoutRoute,
+  path: '/teachers/$teacherId',
+  component: React.lazy(() => import('@/features/academics/pages/TeacherDetailPage')),
+});
+
+// Student Services route (child of app layout)
+const studentServicesRoute = new Route({
+  getParentRoute: () => appLayoutRoute,
+  path: '/student-services',
+  component: React.lazy(() => import('@/features/academics/pages/StudentServicesPage')),
+});
+
 // Students route (child of app layout)
 const studentsRoute = new Route({
   getParentRoute: () => appLayoutRoute,
   path: '/students',
   component: React.lazy(() => import('@/features/enrollment/pages/StudentsPage')),
+});
+
+// Student Detail route (child of app layout)
+const studentDetailRoute = new Route({
+  getParentRoute: () => appLayoutRoute,
+  path: '/students/$studentId',
+  component: React.lazy(() => import('@/features/enrollment/pages/StudentDetailPage')),
 });
 
 // Three-Tier Enrollment route (child of app layout)
@@ -131,7 +151,10 @@ export const routeTree = rootRoute.addChildren([
     classroomsRoute,
     roomsRoute, // Added rooms route
     teachersRoute, // Added teachers route
+    teacherDetailRoute, // Added teacher detail route
+    studentServicesRoute, // Added student services route
     studentsRoute,
+    studentDetailRoute, // Added student detail route
     enrollmentRoute, // Added three-tier enrollment route
     adminSwapsRoute // Added admin swaps route
   ])

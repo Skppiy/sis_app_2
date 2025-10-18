@@ -100,7 +100,8 @@ export const TeacherSchema = z.object({
   specialist_room_id: z.string().uuid().nullable().optional(), // Room where specialist teaches
   specialist_room_name: z.string().nullable().optional(), // Populated from room data
   is_active: z.boolean().default(true),
-  student_count: z.number().int().default(0), // Current student assignment count
+  student_count: z.number().int().default(0), // Legacy field - number of classes (not students)
+  class_count: z.number().int().optional(), // SME-approved: Number of classes teacher is assigned to
 }).transform((data) => {
   // Transform function to provide safe defaults for display
   return {
@@ -113,6 +114,7 @@ export const TeacherSchema = z.object({
     specialist_room_id: data.specialist_room_id || undefined,
     specialist_room_name: data.specialist_room_name || undefined,
     student_count: data.student_count ?? 0,
+    class_count: data.class_count,
   };
 });
 export type Teacher = z.infer<typeof TeacherSchema>;
@@ -156,19 +158,12 @@ export const TeacherCreateSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
   last_name: z.string().min(1, "Last name is required"),
   email: z.string().email("Valid email is required").optional().or(z.literal("")),
-  grade_level: z.string().optional(),
-  homeroom_id: z.string().uuid().optional(),
-  is_specialist: z.boolean().default(false),
-  specialist_subject: z.string().optional(),
-  specialist_room_id: z.string().uuid().optional(),
   is_active: z.boolean().default(true),
 }).transform((data) => {
   // Clean up empty strings and ensure consistent data
   return {
     ...data,
     email: data.email === '' ? undefined : data.email,
-    grade_level: data.grade_level === '' ? undefined : data.grade_level,
-    specialist_subject: data.specialist_subject === '' ? undefined : data.specialist_subject,
   };
 });
 export type TeacherCreate = z.infer<typeof TeacherCreateSchema>;
@@ -215,26 +210,27 @@ export const ClassroomSchema = z.object({
   name: z.string().min(1),
   grade_level: z.string(),
   classroom_type: z.string().default("CORE"),
-  max_students: z.number().int().optional(),
+  max_students: z.number().int().nullable().optional(),
   subject_id: z.string().uuid(),
   academic_year_id: z.string().uuid(),
-  room_id: z.string().uuid().optional(),
+  room_id: z.string().uuid().nullable().optional(),
   subject: SubjectSchema.optional(),
   academic_year: AcademicYearSchema.optional(),
   room: RoomSchema.optional(),
   teacher_assignments: z.array(TeacherAssignmentSchema).default([]),
-  enrollment_count: z.number().int().default(0),
+  enrollment_count: z.number().int().nullable().optional().default(0),
 });
 export type Classroom = z.infer<typeof ClassroomSchema>;
 
 export const ClassroomCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   grade_level: z.string().min(1, "Grade level is required"),
-  classroom_type: z.string().default("CORE"),
   max_students: z.number().int().positive().optional(),
   subject_id: z.string().uuid("Please select a subject"),
   academic_year_id: z.string().uuid("Please select an academic year"),
   room_id: z.string().uuid().optional(),
+  teacher_id: z.string().uuid("Please select a teacher"),
+  // Note: classroom_type is auto-derived from subject.requires_specialist
 });
 export type ClassroomCreate = z.infer<typeof ClassroomCreateSchema>;
 

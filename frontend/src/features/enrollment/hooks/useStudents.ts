@@ -1,15 +1,16 @@
 // src/features/enrollment/hooks/useStudents.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  listStudents, 
-  getStudent, 
-  createStudent, 
-  updateStudent, 
+import {
+  listStudents,
+  getStudent,
+  createStudent,
+  updateStudent,
   deleteStudent,
   getStudentEnrollments,
   enrollStudent,
   withdrawEnrollment,
-  getNextStudentId
+  getNextStudentId,
+  bulkEnrollStudentsInClassrooms
 } from '../services/students';
 import type { StudentCreate, StudentUpdate } from '@/schemas/students';
 import { queryKeys } from '@/api/queryKeys';
@@ -243,6 +244,38 @@ export function useWithdrawEnrollment(studentId: string) {
         queryKey: queryKeys.students.enrollments(studentId) 
       });
     },
+  });
+}
+
+// Hook for bulk enrollment in multiple classrooms
+export function useBulkClassroomEnrollment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: bulkEnrollStudentsInClassrooms,
+    onSuccess: (data, variables) => {
+      // Invalidate enrollments for all affected students
+      variables.students.forEach(studentId => {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.students.enrollments(studentId)
+        });
+      });
+
+      // Invalidate students list
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.students.lists()
+      });
+
+      // Invalidate classrooms list to update enrollment counts
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.classrooms.lists()
+      });
+
+      console.log(`Bulk enrollment completed: ${data.summary.total_enrollments_created} enrollments created`);
+    },
+    onError: (error) => {
+      console.error('Bulk enrollment failed:', error);
+    }
   });
 }
 

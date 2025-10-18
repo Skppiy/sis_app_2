@@ -140,8 +140,8 @@ export async function getStudentEnrollments(
   }
   
   const queryString = searchParams.toString();
-  const url = queryString 
-    ? `/students/${studentId}/enrollments?${queryString}` 
+  const url = queryString
+    ? `/students/${studentId}/enrollments?${queryString}`
     : `/students/${studentId}/enrollments`;
   
   const data = await apiFetch<unknown>(url);
@@ -207,6 +207,82 @@ export async function enrollStudent(payload: {
       }
     }
     
+    throw error;
+  }
+}
+
+// Bulk enroll students in multiple classrooms
+export async function bulkEnrollStudentsInClassrooms(payload: {
+  students: string[];
+  classrooms: string[];
+  grade_level: string;
+  academic_year_id: string;
+}): Promise<{
+  enrollments_created: Enrollment[];
+  errors: Array<{ student_id: string; classroom_id: string; error: string }>;
+  summary: {
+    total_enrollments_created: number;
+    total_students_processed: number;
+    total_classrooms_targeted: number;
+    errors_count: number;
+  };
+}> {
+  try {
+    logOperation('bulkEnrollStudentsInClassrooms', {
+      studentCount: payload.students.length,
+      classroomCount: payload.classrooms.length
+    });
+
+    const enrollments_created: Enrollment[] = [];
+    const errors: Array<{ student_id: string; classroom_id: string; error: string }> = [];
+
+    // Create enrollment for each student-classroom combination
+    for (const studentId of payload.students) {
+      for (const classroomId of payload.classrooms) {
+        try {
+          const enrollment = await enrollStudent({
+            student_id: studentId,
+            classroom_id: classroomId,
+            grade_level: payload.grade_level,
+            enrollment_date: new Date().toISOString().split('T')[0], // Today's date
+          });
+          enrollments_created.push(enrollment);
+        } catch (error) {
+          console.error(`Failed to enroll student ${studentId} in classroom ${classroomId}:`, error);
+
+          // Handle duplicate enrollments gracefully
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes('already enrolled') || errorMessage.includes('duplicate')) {
+            // Don't treat duplicates as errors - just skip silently
+            console.log(`Student ${studentId} already enrolled in classroom ${classroomId} - skipping`);
+            continue;
+          }
+
+          errors.push({
+            student_id: studentId,
+            classroom_id: classroomId,
+            error: errorMessage
+          });
+        }
+      }
+    }
+
+    const summary = {
+      total_enrollments_created: enrollments_created.length,
+      total_students_processed: payload.students.length,
+      total_classrooms_targeted: payload.classrooms.length,
+      errors_count: errors.length,
+    };
+
+    logOperation('bulkEnrollStudentsInClassrooms success', summary);
+
+    return {
+      enrollments_created,
+      errors,
+      summary
+    };
+  } catch (error) {
+    logError('bulkEnrollStudentsInClassrooms', error);
     throw error;
   }
 }

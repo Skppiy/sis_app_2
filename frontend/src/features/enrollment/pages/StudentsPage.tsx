@@ -45,9 +45,12 @@ import {
   School as EnrollmentIcon,
   Search as SearchIcon,
   AutoAwesome as ThreeTierIcon,
+  Sort as SortIcon,
+  FilterList as FilterIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useNavigate } from '@tanstack/react-router';
 import { format } from 'date-fns';
 import { z } from 'zod';
 
@@ -88,6 +91,7 @@ type EnrollmentFormData = z.infer<typeof EnrollmentFormSchema>;
 export default function StudentsPage() {
   const { user, activeSchool } = useAuth();
   const theme = useTheme();
+  const navigate = useNavigate();
   
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -103,6 +107,10 @@ export default function StudentsPage() {
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const [useEnhancedView, setUseEnhancedView] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // List view sorting state
+  const [sortField, setSortField] = useState<'name' | 'grade' | 'email' | 'status' | 'enrollments'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const schoolId = activeSchool?.id;
   
@@ -378,9 +386,24 @@ export default function StudentsPage() {
     }
   };
 
+  // Handle sort change for list view
+  const handleSortChange = (field: 'name' | 'grade' | 'email' | 'status' | 'enrollments') => {
+    if (field === sortField) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Handle navigation to student detail page
+  const handleViewDetails = (studentId: string) => {
+    navigate({ to: '/app/students/$studentId', params: { studentId } });
+  };
+
   // Filter and search students
   const filteredStudents = useMemo(() => {
-    return students.filter(student => {
+    let filtered = students.filter(student => {
       const searchLower = searchQuery.toLowerCase();
       return (
         student.first_name.toLowerCase().includes(searchLower) ||
@@ -389,7 +412,37 @@ export default function StudentsPage() {
         student.student_id?.toLowerCase().includes(searchLower)
       );
     });
-  }, [students, searchQuery]);
+
+    // Sort students (only apply sorting for list view to match behavior)
+    if (viewMode === 'list') {
+      filtered.sort((a, b) => {
+        let comparison = 0;
+
+        switch (sortField) {
+          case 'name':
+            comparison = `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
+            break;
+          case 'grade':
+            comparison = a.current_grade_level.localeCompare(b.current_grade_level);
+            break;
+          case 'email':
+            comparison = (a.email || '').localeCompare(b.email || '');
+            break;
+          case 'status':
+            comparison = Number(b.is_active) - Number(a.is_active);
+            break;
+          case 'enrollments':
+            // For enrollments, we'll sort by name as we don't have enrollment counts here
+            comparison = `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
+            break;
+        }
+
+        return sortOrder === 'asc' ? comparison : -comparison;
+      });
+    }
+
+    return filtered;
+  }, [students, searchQuery, viewMode, sortField, sortOrder]);
 
 
   if (error) {
@@ -554,10 +607,11 @@ export default function StudentsPage() {
           itemsPerPage={12}
           useEnhancedCards={useEnhancedView}
           showBulkOperations={useEnhancedView}
-          availableClassrooms={availableClassrooms.map(c => ({ 
-            id: c.id, 
-            name: c.name, 
-            subject: c.subject 
+          availableClassrooms={availableClassrooms.map(c => ({
+            id: c.id,
+            name: c.name,
+            grade_level: c.grade_level,
+            subject: c.subject
           }))}
           onBulkEnroll={(studentIds, classroomId) => {
             const studentsForBulk = filteredStudents.filter(s => studentIds.includes(s.id));
@@ -573,12 +627,52 @@ export default function StudentsPage() {
         />
       ) : (
         /* Professional List View */
-        <Paper sx={{ mb: 3 }}>
-          {isLoading ? (
-            <Box sx={{ p: 2 }}>
-              <Typography>Loading students...</Typography>
-            </Box>
-          ) : (
+        <>
+          {/* List View Sorting Controls */}
+          <Paper sx={{ p: 3, mb: 2 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="h6" fontWeight={600}>
+                Sort Students
+              </Typography>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <InputLabel>Sort By</InputLabel>
+                  <Select
+                    value={sortField}
+                    label="Sort By"
+                    onChange={(e) => handleSortChange(e.target.value as any)}
+                    startAdornment={
+                      <InputAdornment position="start">
+                        <SortIcon sx={{ color: theme.palette.text.secondary, mr: 0.5 }} />
+                      </InputAdornment>
+                    }
+                    sx={{
+                      borderRadius: 2,
+                      bgcolor: alpha(theme.palette.background.paper, 0.5),
+                    }}
+                  >
+                    <MenuItem value="name">Name</MenuItem>
+                    <MenuItem value="grade">Grade</MenuItem>
+                    <MenuItem value="email">Email</MenuItem>
+                    <MenuItem value="status">Status</MenuItem>
+                  </Select>
+                </FormControl>
+                <Typography variant="body2" color="text.secondary">
+                  {sortOrder === 'asc' ? '↑' : '↓'} {sortField.charAt(0).toUpperCase() + sortField.slice(1)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {filteredStudents.length} students
+                </Typography>
+              </Stack>
+            </Stack>
+          </Paper>
+
+          <Paper sx={{ mb: 3 }}>
+            {isLoading ? (
+              <Box sx={{ p: 2 }}>
+                <Typography>Loading students...</Typography>
+              </Box>
+            ) : (
             <List sx={{ p: 0 }}>
               {filteredStudents.map((student, index) => (
                 <ListItem
@@ -612,7 +706,21 @@ export default function StudentsPage() {
                   <ListItemText
                     primary={
                       <Stack direction="row" alignItems="center" spacing={2}>
-                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            fontWeight: 600,
+                            color: theme.palette.primary.main,
+                            cursor: 'pointer',
+                            textDecoration: 'none',
+                            '&:hover': {
+                              textDecoration: 'underline',
+                              color: theme.palette.primary.dark,
+                            },
+                            transition: 'color 0.2s ease',
+                          }}
+                          onClick={() => handleViewDetails(student.id)}
+                        >
                           {student.first_name} {student.last_name}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -735,8 +843,9 @@ export default function StudentsPage() {
                 </Box>
               )}
             </List>
-          )}
-        </Paper>
+            )}
+          </Paper>
+        </>
       )}
 
       {/* Create Dialog */}
@@ -1141,6 +1250,7 @@ export default function StudentsPage() {
         classrooms={availableClassrooms.map(c => ({
           id: c.id,
           name: c.name,
+          grade_level: c.grade_level,
           subject: c.subject,
           room: c.room,
           capacity: undefined, // Add if available in your data

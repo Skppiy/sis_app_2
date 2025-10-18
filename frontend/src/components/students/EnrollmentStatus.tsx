@@ -233,7 +233,7 @@ export const EnrollmentStatus: React.FC<EnrollmentStatusProps> = ({
                       primary={
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Typography variant="subtitle2" fontWeight={500}>
-                            Classroom {enrollment.classroom_id}
+                            {enrollment.classroom?.name || `Classroom ${enrollment.classroom_id.slice(0, 8)}...`}
                           </Typography>
                           <Chip
                             label={enrollment.enrollment_status}
@@ -257,6 +257,15 @@ export const EnrollmentStatus: React.FC<EnrollmentStatusProps> = ({
                       }
                       secondary={
                         <Stack direction="column" spacing={0.5} sx={{ mt: 1 }}>
+                          {/* Subject and Teacher Info */}
+                          {enrollment.classroom && (
+                            <Typography variant="body2" color="text.secondary">
+                              {enrollment.classroom.subject?.name || 'Subject: N/A'}
+                              {enrollment.classroom.teacher_assignments?.[0]?.teacher &&
+                                ` • ${enrollment.classroom.teacher_assignments[0].teacher.first_name} ${enrollment.classroom.teacher_assignments[0].teacher.last_name}`}
+                              {enrollment.classroom.room && ` • Room: ${enrollment.classroom.room.name}`}
+                            </Typography>
+                          )}
                           <Typography variant="body2" color="text.secondary">
                             Enrolled: {formatDate(enrollment.enrollment_date)}
                           </Typography>

@@ -397,7 +397,10 @@ export const TierOneComponent: React.FC<TierOneComponentProps> = ({
                           {teacher.first_name} {teacher.last_name}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Grade {teacher.grade_level} • {teacher.email}
+                          {teacher.is_specialist ?
+                            `Specialist: ${teacher.specialist_subject || 'General'}` :
+                            `Grade ${teacher.grade_level}`
+                          } • {teacher.email}
                         </Typography>
                       </Box>
                     </Stack>

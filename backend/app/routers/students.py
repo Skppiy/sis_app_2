@@ -352,6 +352,24 @@ async def promote_students(
         logging.error(f"Failed to promote students: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to promote students")
 
+@router.get("/{student_id}", response_model=StudentOut)
+async def get_student(
+    student_id: UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: any = Depends(get_current_user),
+):
+    """Get a single student by ID"""
+    try:
+        student = await session.get(Student, student_id)
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
+        return student
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Failed to get student {student_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch student")
+
 @router.put("/{student_id}", response_model=StudentOut)
 async def update_student(
     student_id: UUID,
@@ -512,7 +530,7 @@ async def debug_student_info(
     except Exception as e:
         return {"error": str(e)}
 
-@router.get("/{student_id}/enrollments", response_model=List[StudentSubjectEnrollmentOut])
+@router.get("/{student_id}/enrollments")
 async def get_student_enrollments(
     student_id: str,  # Changed to string
     academic_year_id: Optional[str] = Query(None, description="Filter by academic year"),
@@ -558,17 +576,40 @@ async def get_student_enrollments(
             grade_level = student.current_grade_level if student else None
 
             enrollment_dict = {
-                "id": enrollment.id,
-                "student_id": enrollment.student_id,
-                "classroom_id": enrollment.classroom_id,
-                "subject_name": enrollment.subject.name if enrollment.subject else "Unknown Subject",
-                "classroom_name": enrollment.classroom.name if enrollment.classroom else "Unknown Classroom",
-                "teacher_name": teacher_name,
+                "id": str(enrollment.id),
+                "student_id": str(enrollment.student_id),
+                "classroom_id": str(enrollment.classroom_id),
+                "academic_year_id": str(enrollment.academic_year_id) if enrollment.academic_year_id else None,
                 "grade_level": grade_level,
-                "enrollment_date": enrollment.enrolled_date,
+                "enrollment_date": enrollment.enrolled_date.isoformat() if enrollment.enrolled_date else None,
+                "withdrawal_date": None,  # StudentSubjectEnrollment doesn't have this field
                 "enrollment_status": enrollment.enrollment_status,
                 "is_active": enrollment.is_active,
+                "withdrawal_reason": None,  # StudentSubjectEnrollment doesn't have this field
+                "is_audit_only": False,  # Can be enhanced later
                 "requires_accommodation": False,  # Can be enhanced later
+                "enrolled_by": None,  # StudentSubjectEnrollment doesn't have this field
+                # Add classroom details to match frontend schema
+                "classroom": {
+                    "id": str(enrollment.classroom.id) if enrollment.classroom else None,
+                    "name": enrollment.classroom.name if enrollment.classroom else "Unknown Classroom",
+                    "subject": {
+                        "id": str(enrollment.subject.id) if enrollment.subject else None,
+                        "name": enrollment.subject.name if enrollment.subject else "Unknown Subject",
+                        "code": enrollment.subject.code if enrollment.subject else None,
+                        "subject_type": enrollment.subject.subject_type if enrollment.subject else None,
+                    } if enrollment.subject else None,
+                    "teacher_assignments": [
+                        {
+                            "teacher": {
+                                "id": str(enrollment.teacher_assignment.teacher.id),
+                                "first_name": enrollment.teacher_assignment.teacher.first_name,
+                                "last_name": enrollment.teacher_assignment.teacher.last_name,
+                            }
+                        }
+                    ] if enrollment.teacher_assignment and enrollment.teacher_assignment.teacher else [],
+                    "room": None  # StudentSubjectEnrollment doesn't have room info
+                } if enrollment.classroom else None
             }
             enrollment_data.append(enrollment_dict)
 
